@@ -1,0 +1,247 @@
+function eA_preproc(cfg)
+% rough preprocessing function
+% TODO add rereferencing
+% TODO add CSD
+
+PREIN = cfg.PREIN;
+PREOUT = cfg.PREOUT;
+subjno = cfg.subjno;
+ses = cfg.ses;
+irun = cfg.irun;
+linenoise_rem = cfg.linenoise_rem;
+SUBJ = sprintf('NK%d', subjno);
+
+disp(megfile)
+cd(megdir);
+
+%%
+disp('load raw meg data')
+cfg=[]; % HP filter
+% cfg.hpfilter = 'yes';
+% cfg.hpfreq =  0.5;  %
+% cfg.hpfiltord = 4;
+cfg.dataset = megfile.name;
+cfg.channel = 'all';
+cfg.continuous = 'yes';
+% cfg.bsfilter = 'yes'; % try out
+% cfg.bsfreq = [49 51];
+data = ft_preprocessing(cfg);
+
+% linenoise_rem = 'bandstop';
+switch linenoise_rem
+  case 'zapline-plus'
+    disp 'Run zapline-plus'
+    cfg=[];
+    cfg.resample = 'yes';
+    cfg.resamplefs = 350;
+    cfg.detrend = 'no';
+    data = ft_resampledata(cfg, data);
+    dat = data.trial{1}(1:end-3,:);
+    
+    [cleanData, zaplineConfig, analyticsResults, plothandles] = clean_data_with_zapline_plus(dat, data.fsample, 'noisefreqs', 50); %
+    saveas(gcf, fullfile(PREOUT, 'figures',  sprintf('%s_%s_run%d_zapline-plus_50Hz.png', SUBJ, cond, irun)) )
+
+    data.trial{1}(1:end-3,:) = cleanData;   
+
+    ft_postamble previous   data   % this copies the data.cfg structure into the cfg.previous field. You can also use it for multiple inputs, or for "varargin"
+    ft_postamble history    data  % this adds the local cfg structure to the output data structure, i.e. dataout.cfg = cfg
+end
+
+plotit=1;
+if plotit 
+  disp 'check if zapline did well'
+  cfgfreq              = [];
+  cfgfreq.output       = 'pow';
+  %   cfgfreq.channel      = 'all';
+  cfgfreq.method       = 'mtmfft';
+  cfgfreq.taper        = 'hanning';
+  cfgfreq.keeptrials   = 'no';
+  cfgfreq.foilim       = [0 min(256/2, 200)];
+  cfgfreq.pad='nextpow2';
+  tempfreq = ft_freqanalysis(cfgfreq, data);
+  figure; semilogy(tempfreq.freq, mean(tempfreq.powspctrm(1:end-3,:)))
+  clear tempfreq
+end
+
+disp('high pass filter the data')
+cfg=[]; % HP filter
+cfg.hpfilter = 'yes';
+cfg.hpfreq =  0.5;  %
+cfg.hpfiltord = 4;
+cfg.continuous = 'yes';
+data = ft_preprocessing(cfg, data);
+
+%%
+% cut out trials: either chunks of X sec or blink-triggered trials
+% use ft_artifact_eog to detect blinks and use them as "triggers"
+
+disp('define trials')
+cfg = [];
+cfg.dataset = megfile.name;
+cfg.fsample = 1200; % data.fsample
+cfg.trialfun = 'trialfun'; % TODO write trialfun tailored to the data!
+cfg.trialdef.trg = 'stim'; %baseline, stim or resp
+cfg.trialdef.begtim = -0.75;  % before stim onset
+cfg.trialdef.endtim = 0.5; % after report
+cfg.datatype = 'EEG';
+cfg.irun = irun;
+cfg.ses = ses;
+cfg = ft_definetrial(cfg); % define trials 
+event = cfg.event;
+
+trl = cfg.trl;
+trl(:,1:3) = round(trl(:,1:3)/ (1200/data.fsample)); % resample trl if data was already downsampled
+cfg = [];
+cfg.trl = trl;
+data = ft_redefinetrial(cfg, data);
+
+% always plot data
+if ismac
+  cfg=[];
+  %   cfg.event = event;
+  cfg.preproc.demean = 'yes';
+  cfg.viewmode = 'vertical';
+  cfg.channel = 'EEG';
+  ft_databrowser(cfg, data)
+end
+
+% TODO edit this for EEG
+
+disp 'Artifact rejection'
+
+disp 'drop trials with range > 5e-12 Tesla'
+cfg = [];
+cfg.channel = 'MEG';
+tempdata = ft_selectdata(cfg, data);
+maxpertrl = cell2mat(cellfun(@(x) max(abs(x(:))), tempdata.trial, 'uni', false));
+cfg = [];
+cfg.trials = find(maxpertrl < 5e-12);
+data = ft_selectdata(cfg, data);
+clear tempdata
+trl = trl(cfg.trials,:); % remove from trl too to remove from jump and muscle rejection
+
+disp 'Looking for MUSCLE artifacts . . .'
+if ismac
+  cfg.artfctdef.muscle.interactive = 'yes';
+end
+cfg.artfctdef.muscle.cutoff = -1;
+[~, artifact_muscle] = ft_artifact_muscle(cfg, data);
+
+disp 'reject artifact trials'
+cfg = [];
+cfg.artfctdef.jump.artifact = artifact_jump;
+cfg.artfctdef.muscle.artifact = artifact_muscle;
+data  = ft_rejectartifact(cfg, data);
+
+cfg=[];
+data_eye = ft_resampledata(cfg, data_eye);
+
+disp 'append ECG to eye_data struct'
+cfg = [];
+% cfg.channel =  'EEG059';
+cfg.channel =  {'EEG057' 'EEG058' 'EEG059'};
+ECGEOGdata = ft_selectdata(cfg, data);
+data_eye = ft_appenddata([], data_eye, ECGEOGdata);
+clear ECGEOGdata
+if ismac
+  cfg=[]
+  cfg.viewmode = 'vertical';
+  cfg.demean = 'yes';
+  cfg.channel =  {'EEG057' 'EEG058' 'EEG059' 'EYE_HORIZONTAL' 'EYE_VERTICAL'};
+  ft_databrowser(cfg, data_eye)
+end
+  
+disp 'run ICA'
+cfg = [];
+cfg.channel = 'MEG';
+cfg.method = 'runica';
+% cfg.method = 'fastica';
+cfg.runica.stop = 0.00000014;
+%   cfg.numcomponent = 100;
+%  cfg.trials = 1; % testing
+comp = ft_componentanalysis(cfg, data);
+
+if ismac
+  cfg = [];
+  cfg.viewmode = 'vertical'; % component
+  %         cfg.channel = 1:50;       % specify the component(s) that should be plotted
+  ft_databrowser(cfg, comp)
+  f = gcf;
+  f.Position = [69 58 774 1045];
+  
+  cfg = [];
+  cfg.component = 1:50;       % specify the component(s) that should be plotted
+  cfg.layout = 'CTF275';
+  cfg.comment   = 'no';
+  cfg.marker = 'off';
+  figure('units','normalized','outerposition', [0.9995 0.0367 1 0.8775] )
+  ft_topoplotIC(cfg, comp)
+end
+
+disp('corr all IC''a with ECG per trial and average across trials')
+cfg = [];
+cfg.channel =  'EEG059';
+ECGdata = ft_selectdata(cfg, data);
+rho = nan(length(ECGdata.trial), length(comp.label));
+for itrial = 1:length(ECGdata.trial)
+  rho(itrial,:) = corr(comp.trial{itrial}', ECGdata.trial{itrial}');
+end
+rho = mean(rho);
+% figure; plot(rho)
+% [~,ecgcomp] = max(rho); % 1 component with max correlating component
+% [~,ecgcomp] = find(rho > 0.3); % components with correlating > 0.3
+[~,ecgcomp] = find(abs(zscore(rho)) > 3); % use zscore
+
+% TODO edit this to remove IC's correlating with EOG?
+disp('corr all IC''a with eyelink blinks and saccades')
+eye_events = {'EYE_BLINKS', 'EYE_SACCADES'};
+eyecomp = {};  cfg = [];
+if ismac; f = figure; end
+for iev = 1:2
+  cfg.channel = eye_events{iev};
+  blinkdata = ft_selectdata(cfg, data_eye);
+  
+  rho = nan(length(blinkdata.trial), length(comp.label));
+  for itrial = 1:length(blinkdata.trial)
+    rho(itrial,:) = corr(comp.trial{itrial}', blinkdata.trial{itrial}');
+  end
+  rho = nanmean(rho);
+  if ismac; subplot(1,2,iev); plot(rho); end % figure; plot(zscore(rho))
+  [~,eyecomp{iev}] = find(abs(zscore(rho)) > 5); % use zscore
+end
+
+disp('reject ekg, blink and sacc components')
+cfg = [];
+cfg.component = unique([ecgcomp [eyecomp{:}]]); % to be removed component(s)
+data = ft_rejectcomponent(cfg, comp);
+
+%% oostenveld 2019 lmcv beamforming variance based artifact rejection
+% run after blink and heart artifact removal with ICA to reject trials that escaped
+disp 'Find trial variance outliers and index them'
+cfg = [];
+cfg.channel = 'MEG';
+tempdata = ft_selectdata(cfg, data);
+
+cfg = [];
+cfg.cov_cut    = [2, 98]; % not used with zscorecut
+cfg.badtrs     = [];
+cfg.bad_trials = [];
+cfg.method = 'zscorecut'; % zscorecut (abs(min)+1 threshold) or maxmin_perct (original)
+[selecttrials, cfg] = NM_ft_varcut3(tempdata, cfg, ismac); %https://dx.doi.org/10.1101/795799
+
+disp 'Reject bad trials'
+old_trs= size(data.trial,2);
+cfg2 = [];
+cfg2.trials = selecttrials;
+data = ft_selectdata(cfg2, data);
+data_eye = ft_selectdata(cfg2, data_eye);
+fprintf('\nRemaining #trials = %d - %d = %d trials .........\nRemoved trials: ',...
+  old_trs, length(cfg.bad_trials), size(data.trial,2)); disp(cfg.bad_trials)
+clear tempdata
+
+%% Save the preprocessed data
+
+outfile = fullfile(PREOUT, sprintf('%s_%s_run%d_zapline.mat', SUBJ, cond, irun)); % runno appended below
+fprintf('Saving %s\n', outfile)
+save(outfile, 'data', 'data_eye');
+
