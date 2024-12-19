@@ -87,25 +87,21 @@ stat_mse_2group = ft_freqstatistics(cfg, young_mse_all, older_mse_all);
 % plot 2 group PLS: 1 BSR map for LV1, but two sets of bars: for YA and OA:
 % Goal: see if we get same direction of bars for YA and OA
 f = figure; f.Position = [680         624        1171         254];
-tiledlayout(1,5);
+tiledlayout(1,4);
 cfg.clussign = 'pos';
 cfg.clus2plot = 1;   cfg.integratetype = 'trapz'; % mean or trapz
-stat_mse.posclusterslabelmat = stat_mse.mask;
-ft_clusterplot3D(cfg, stat_mse)
+stat_mse_2group.posclusterslabelmat = stat_mse_2group.mask;
+ft_clusterplot3D(cfg, stat_mse_2group)
 
 % plot latent behav vs latent brain
-nexttile; s = scatter(stat_mse.behavscores, stat_mse.brainscores, 'MarkerEdgeColor',[1 1 1],  'MarkerFaceColor', [0 0 0], 'LineWidth',1.0, 'SizeData', 40); axis padded; lsline; box on;
+nexttile; s = scatter(stat_mse_2group.behavscores, stat_mse_2group.brainscores, 'MarkerEdgeColor',[1 1 1],  'MarkerFaceColor', [0 0 0], 'LineWidth',1.0, 'SizeData', 40); axis padded; lsline; box on;
 xlabel('"Cognitive rigidness"'); ylabel('EEG entropy at rest'); 
-title(sprintf('r = %1.2f', corr(stat_mse.brainscores, stat_mse.behavscores)))
+title(sprintf('r = %1.2f', corr(stat_mse_2group.brainscores, stat_mse_2group.behavscores)))
 
 % bar plot corrs for each behav var
-nexttile; b=bar(stat_mse.results.lvcorrs(1:11,1)); xticklabels(behavNames); % Assuming 11 behavioral variables!
+nexttile; b=bar([stat_mse_2group.results.lvcorrs(1:11,1)'; stat_mse_2group.results.lvcorrs(12:end,1)']) ; xticklabels(behavNames); % Assuming 11 behavioral variables!
 ylabel('Correlation')
-title('Brain score vs behavior YA')
-
-nexttile; b=bar(stat_mse.results.lvcorrs(12:end,1)); xticklabels(behavNames); % Assuming 11 behavioral variables!
-ylabel('Correlation')
-title('Brain score vs behavior OA')
+title('Brain score vs behavior YA OA')
 
 saveas(f, 'behavPLS_MSE_2group', 'pdf');
 saveas(f, 'behavPLS_MSE_2group', 'png');
