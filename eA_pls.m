@@ -25,8 +25,8 @@ cfg.num_boot = 1000;
 cfg.method = 'analytic';                    % analytic method for statistics
 cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
 cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
-cfg.design = behav;
 cfg.num_cond = 1;                           % Number of conditions
+cfg.design = behav;
 cfg.num_subj_lst = size(young_mse_all.powspctrm,1); % Number of subjects per condition
 
 % Step 3: Compute statistics
@@ -64,8 +64,19 @@ title('Brain score vs behavior')
 saveas(f, 'behavPLS_MSE', 'pdf');
 saveas(f, 'behavPLS_MSE', 'png');
 
+%% 2 group PLS
+older_mse_all = young_mse_all;
+older_mse_all.powspctrm = older_mse_all.powspctrm(1:17,:,:,:); % pretend lower N in OA
 
-
-
-% TODO 2 group PLS
-
+cfg = [];
+cfg.frequency = [20 100];
+cfg.statistic = 'ft_statfun_pls';           % PLS statistics
+cfg.num_perm = 100;                         % Number of permutation
+cfg.num_boot = 100;
+cfg.method = 'analytic';                    % analytic method for statistics
+cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
+cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
+cfg.num_cond = 1;                           % Number of conditions
+cfg.design = [behav; behav(1:17,:)];        % append behav OA to YA
+cfg.num_subj_lst = [19 17];                 % Number of subjects per condition, array!
+stat_mse = ft_freqstatistics(cfg, young_mse_all, older_mse_all);
