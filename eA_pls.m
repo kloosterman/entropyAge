@@ -9,25 +9,39 @@ load /Users/kloosterman/Documents/GitHub/LRaudio/Acticap_64_UzL.mat; % lay comes
 datapath = '/Users/kloosterman/projectdata/EntropyAging';
 cd(datapath)
 
-behav = readtable('FoPra_Behavioral_Measures.xlsx');
-behavNames = behav.Properties.VariableNames;
-behav = behav(behav.Age_Group==1,:);
-behav = table2array(behav(:,7:19));
-behavNames = behavNames(7:19);
+behav_all = readtable('FoPra_Behavioral_Measures.xlsx');
+behavNames = string(behav_all.Properties.VariableNames);
+% all vars:
+% behav_of_interest = ["VP"	"Sex1_m2_f"	"Age"	"Age_Group"	"Years_Education"	"HoechsterAbschlussDiplom_Master_1_Bachelor_2_Abitur_3_Real_4_Ha"	"d2KL"	"VLMTDg1_5"	"VLMTDg1"	"VLMTDg5"	"VLMTI"	"VLMTDg7"	"VLMTW"	"VLMTW_F"	"WMT_2"	"ZahlenGes"	"ZahlenVor"	"ZahlenRueck"	"MWT_B"	"MoCA"	"GDS"	"Blink_trial_all"	"Blink_trial_350"	"Blink_trial_1050"	"Blink_trial_musc_artifact"	"Blink_trial_varcut"	"Blink_Mean_Amplitude"	"Blink_Peak_Mean_Amplitude"	"Blink_Mean_Duration"];
 
-behav = behav(:,[1:6, 9:end]);
-behavNames = behavNames([1:6, 9:end]);
+behav_of_interest = ["Age"	"Years_Education"	"d2KL"	"VLMTDg1_5"	"VLMTDg1"	"VLMTDg5"	"VLMTI"	"VLMTDg7"	"VLMTW"	"VLMTW_F"...
+                      "WMT_2"	"ZahlenGes"	"ZahlenVor"	"ZahlenRueck"	"MWT_B"];
+
+behav_of_interest = ["d2KL"	"VLMTDg1_5"	"VLMTDg1"	"VLMTDg5"	"VLMTI"	"VLMTDg7"	"VLMTW"	"VLMTW_F"...
+                      "WMT_2"	"ZahlenGes"	"ZahlenVor"	"ZahlenRueck"	"MWT_B"];
+
+behav = behav_all(behav_all.Age_Group==1,:);
+behav = behav(behav.Age_Group==1, behav_of_interest);
+behav = table2array(behav);
+
+% behav = table2array(behav(:,7:19));
+% behavNames = behavNames(7:19);
+
+% behav = behav(:,[1:6, 9:end]);
+% behavNames = behavNames([1:6, 9:end]);
 
 load('young_mse_all.mat', 'young_mse_all')
+
+%% YA PLS analysis
 
 cfg = [];
 cfg.frequency = [20 100];
 cfg.statistic = 'ft_statfun_pls';           % PLS statistics
-cfg.num_perm = 1000;                         % Number of permutation
-cfg.num_boot = 1000;
+cfg.num_perm = 100;                         % Number of permutation
+cfg.num_boot = 100;
 cfg.method = 'analytic';                    % analytic method for statistics
 cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
-cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
+cfg.cormode = 8;                            % 0 is Pearson corr, 8 is Spearman
 cfg.num_cond = 1;                           % Number of conditions
 cfg.design = behav;
 cfg.num_subj_lst = size(young_mse_all.powspctrm,1); % Number of subjects per condition
@@ -59,13 +73,13 @@ xlabel('"Cognitive rigidness"'); ylabel('EEG entropy at rest');
 title(sprintf('r = %1.2f', corr(stat_mse.brainscores, stat_mse.behavscores)))
 
 % bar plot corrs for each behav var
-% nexttile; b=bar(corr(stat_mse.brainscores, behav)); xticklabels(behavNames);
-nexttile; b=bar(stat_mse.results.lvcorrs(:,1)); xticklabels(behavNames);
+% nexttile; b=bar(corr(stat_mse.brainscores, behav)); xticklabels(behav_of_interest);
+nexttile; b=bar(stat_mse.results.lvcorrs(:,1)); xticklabels(behav_of_interest);
 ylabel('Correlation')
 title('Brain score vs behavior')
 
-saveas(f, 'behavPLS_MSE', 'pdf');
-saveas(f, 'behavPLS_MSE', 'png');
+% saveas(f, 'behavPLS_MSE', 'pdf');
+% saveas(f, 'behavPLS_MSE', 'png');
 
 %% 2 group PLS
 older_mse_all = young_mse_all; % @Moritz: put the OA data here!
@@ -99,7 +113,7 @@ xlabel('"Cognitive rigidness"'); ylabel('EEG entropy at rest');
 title(sprintf('r = %1.2f', corr(stat_mse_2group.brainscores, stat_mse_2group.behavscores)))
 
 % bar plot corrs for each behav var
-nexttile; b=bar([stat_mse_2group.results.lvcorrs(1:11,1)'; stat_mse_2group.results.lvcorrs(12:end,1)']) ; xticklabels(behavNames); % Assuming 11 behavioral variables!
+nexttile; b=bar([stat_mse_2group.results.lvcorrs(1:11,1)'; stat_mse_2group.results.lvcorrs(12:end,1)']) ; xticklabels(behav_of_interest); % Assuming 11 behavioral variables!
 ylabel('Correlation')
 title('Brain score vs behavior YA OA')
 
