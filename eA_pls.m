@@ -119,3 +119,28 @@ title('Brain score vs behavior YA OA')
 
 saveas(f, 'behavPLS_MSE_2group', 'pdf');
 saveas(f, 'behavPLS_MSE_2group', 'png');
+
+
+%% factor analysis
+behav_all = readtable('FoPra_Behavioral_Measures.xlsx');
+behavNames = string(behav_all.Properties.VariableNames);
+
+behav_of_interest = ["d2KL"	"VLMTDg1"	"VLMTDg5"	"VLMTI"	"VLMTDg7"	"VLMTW"	"VLMTW_F"...
+                      "WMT_2"	"ZahlenVor"	"ZahlenRueck"	"MWT_B"];  % "VLMTDg1_5"	 "ZahlenGes"	
+
+behav = behav_all(behav_all.Age_Group>0,:);
+behav = behav(behav.Age_Group>0, behav_of_interest);
+behav = varfun(@zscore, behav);
+
+writetable(behav, 'eA_EFAdata')
+behav = table2array(behav);
+
+figure; imagesc(cov(zscore(behav))); colorbar  % = figure; imagesc(corr(behav)); colorbar
+
+[loadings, psi, T, stats, factorScores] = factoran(behav, 2, 'scores', 'regression', 'rotate', 'promax');
+biplot(loadings,'LineWidth',2,'MarkerSize',20)
+
+YAfs = mean(factorScores(behav_all.Age_Group == 1,:))
+OAfs = mean(factorScores(behav_all.Age_Group == 2,:))
+
+
