@@ -96,6 +96,8 @@ cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
 cfg.num_cond = 1;                           % Number of conditions
 cfg.design = [behav; behav(1:17,:)];        % append behav OA to YA
 cfg.num_subj_lst = [19 17];                 % Number of subjects per condition, array!
+cfg.interaction = 'yes'; %add group interaction to the model
+cfg.contrast = [1 -1];   % 1 for YA, -1 for OA
 stat_mse_2group = ft_freqstatistics(cfg, young_mse_all, older_mse_all);
 
 % plot 2 group PLS: 1 BSR map for LV1, but two sets of bars: for YA and OA:
@@ -103,7 +105,10 @@ stat_mse_2group = ft_freqstatistics(cfg, young_mse_all, older_mse_all);
 f = figure; f.Position = [680         624        1171         254];
 tiledlayout(1,4);
 cfg.clussign = 'pos';
-cfg.clus2plot = 1;   cfg.integratetype = 'trapz'; % mean or trapz
+cfg.layout=lay;
+cfg.clus2plot = 1; 
+cfg.integratetype = 'trapz'; % mean or trapz
+cfg.parameter = 'prob'; % use stat for main effect correlation, prob for interaction
 stat_mse_2group.posclusterslabelmat = stat_mse_2group.mask;
 ft_clusterplot3D(cfg, stat_mse_2group)
 
