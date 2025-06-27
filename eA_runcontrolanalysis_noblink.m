@@ -12,10 +12,10 @@ addpath('C:/Users/morit/Desktop/FoPra_Daten/entropyAge-main')
 
 % Preprocessing EEG data for one subject
 cfg=[];                                                                                                         % configuration structure for preprocessing script, defining variables by using cfg=[] to start definition process
-cfg.dataset = 'C:/Users/morit/Desktop/FoPra_Daten/Raw_Data_Entropy_Aging/Young/6MS89/RestingState_6MS89.vhdr';  % path to the raw EEG dataset
+cfg.dataset = 'C:/Users/morit/Desktop/FoPra_Daten/Raw_Data_Entropy_Aging/Young/10CH91/RestingState_10CH91.vhdr';  % path to the raw EEG dataset
 cfg.PREOUT_FIG = 'C:/Users/morit/Desktop/FoPra_Daten/figures';                                                          % Output path figures
 cfg.PREOUT_CLEAN = 'C:/Users/morit/Desktop/FoPra_Daten/Clean_Data_Entropy_Aging_Controlanalysis/Young';                         % Output path clean data young
-cfg.SUBJ = '6MS89';                                                                                             % Subject ID
+cfg.SUBJ = '10CH91';                                                                                             % Subject ID
 cfglist = {};                                                                                                   % stores configuration in a cell array, which allows processing of multiple subjects if needed
 cfglist{1} = cfg;                                                                                               % change the 1 to the subjects we have
 cellfun(@eA_preproc_noblink, cfglist)                                                                            % applies the custom preprocessing function eA_preproc to each config in cfglist (in this case just the 7SN97)

@@ -64,6 +64,55 @@ cfg.continuous = 'yes';                                                     % da
 data = ft_preprocessing(cfg, data);                                         % apply high-pass filter on data using ft_preprocessing
 
 
+% %% Step 2.1: Remove bad channel 'F7' and interpolate it (OPTIONAL)
+% %  Backup your eye channels
+% 
+% eye_chans = {'VEOG1', 'VEOG2', 'HEOG1', 'HEOG2'};
+% cfg = [];
+% cfg.channel = eye_chans;
+% data_eye = ft_selectdata(cfg, data);
+% 
+% % Step 2.1.1: Remove F7 only
+% cfg = [];
+% cfg.channel = setdiff(data.label, {'F7'});
+% data_noF7 = ft_selectdata(cfg, data);
+% 
+% % Step 2.1.2: Interpolate F7 in data_noF7
+% % Load electrode info if needed
+% if ~isfield(data_noF7, 'elec')
+%     data_noF7.elec = ft_read_sens('standard_1020.elc');
+% end
+% 
+% cfg = [];
+% cfg.layout = 'EEG1010';
+% layout = ft_prepare_layout(cfg, data_noF7);
+% 
+% cfg_neighb = [];
+% cfg_neighb.method = 'distance';
+% cfg_neighb.layout = layout;
+% cfg_neighb.channel = layout.label;
+% neighbours = ft_prepare_neighbours(cfg_neighb, data_noF7);
+% 
+% cfg = [];
+% cfg.method = 'spline';
+% cfg.badchannel = {'F7'};
+% cfg.missingchannel = {'F7'};
+% cfg.neighbours = neighbours;
+% cfg.layout = layout;
+% data_interp = ft_channelrepair(cfg, data_noF7);
+% 
+% % Step 2.1.3: Append eye channels back
+% data = ft_appenddata([], data_interp, data_eye);
+% 
+% % Put F7 back in position 3 in data.label
+% labels = data.label;
+% labels(strcmp(labels, 'F7')) = [];       % remove F7 from wherever it is
+% labels = [labels(1:2); {'F7'}; labels(3:end)];  % insert F7 at position 3
+% 
+% cfg = [];
+% cfg.channel = labels;
+% data = ft_selectdata(cfg, data);
+
 %% Step 3: Rereference Vert EOG to each other
 cfg = [];                                                                   % initialize emtpy cfg structure
 cfg.channel    = {'VEOG1', 'VEOG2'};                                        % specify channels of interest
@@ -79,10 +128,10 @@ cfg.channel = 'EOGV';
 data_eogvert   = ft_preprocessing(cfg, data_eogvert);                       % extract the channel EOGV from the data and name it data_eogvert
 
 
-%% Step 4: Epoch the data into 3s segments
+%% Step 4: Epoch the data into 1s segments
 % Assuming 350 Hz sampling rate
 fs = data.fsample;
-epoch_length = 3; % in seconds
+epoch_length = 1; % changed to 1 second
 samples_per_epoch = fs * epoch_length;
 
 nSamples = size(data.time{1}, 2);
@@ -98,7 +147,7 @@ end
 
 cfg = [];
 cfg.trl = trl;
-data_epoch = ft_redefinetrial(cfg, data);  % now 3s trials
+data_epoch = ft_redefinetrial(cfg, data);  % now 1s trials
 
 
 %% Step 5: Detect blink-events on EOGV
@@ -179,12 +228,13 @@ ft_databrowser(cfg, data_clean_3s_nomuscle);
 disp('Run ICA...');
 
 cfg = [];
-cfg.channel = setdiff(data_clean_3s_nomuscle.label, {'VEOG2', 'HEOG2'});
+cfg.channel = setdiff(data_clean_3s_nomuscle.label, {'VEOG1', 'HEOG1', 'VEOG2', 'HEOG2'});
 data_clean_3s_nomuscle = ft_selectdata(cfg, data_clean_3s_nomuscle);
 
 cfg = [];
 cfg.channel = 'all';                          % Include all channels
 cfg.method = 'runica';                        % ICA algorithm
+%cfg.runica.pca = 58;                          % match current rank this is because of the interpolation, there are just 58 independent channels left
 cfg.runica.stop = 0.00000014;                 % Convergence threshold
 comp = ft_componentanalysis(cfg, data_clean_3s_nomuscle);  % ICA decomposition
 
@@ -197,11 +247,12 @@ ft_databrowser(cfg, comp);
 %% Step 2: Plot topographies of components
 cfg = [];
 cfg.component = 1:min(60, size(comp.label,1));
-cfg.layout = 'EEG1010';                       % Update if your layout differs
+cfg.layout = 'EEG1010';                         % Update if your layout differs
 cfg.viewmode = 'component';
 cfg.comment = 'no';
 cfg.marker = 'off';
 figure('units', 'normalized', 'outerposition', [0 0 1 1]);
+comp.topo = real(comp.topo);                    % force component topographies to be real
 ft_topoplotIC(cfg, comp);
 
 %% Step 3: Manual component rejection prompt
