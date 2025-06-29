@@ -63,7 +63,7 @@ for iSub = 1:length(old_subjects)
 
     % Step 5: Limit trial count for both TFR + MSE to make it comparable to the
     % blink-event analysis
-    max_trials = 40;
+    max_trials = 100;
     nTrials = length(data_clean_old.trial);
     if nTrials > max_trials
     cfg = [];
@@ -78,10 +78,10 @@ for iSub = 1:length(old_subjects)
     cfg.channel    = 'EEG';
     cfg.method     = 'mtmconvol';
     cfg.taper      = 'hanning';
-    cfg.foi        = 4:1:40;
-    cfg.t_ftimwin  = 5 ./ cfg.foi;
+    cfg.foi        = 2:2:80;                    % 2 to 80Hz 
+    cfg.t_ftimwin  = 5 ./ cfg.foi;              % window length
     cfg.t_ftimwin(cfg.t_ftimwin > 1) = 1;       % Limit window size
-    cfg.toi        = 0.25:0.05:0.75;             % centers of windows that fully fit inside the trial
+    cfg.toi        = 0.25:0.05:0.75;            % centers of windows that fully fit inside the trial
     cfg.keeptrials = 'yes';
 
     data_freq_old = ft_freqanalysis(cfg, data_clean_old);
@@ -155,33 +155,19 @@ cfg.parameter = 'powspctrm';
 cfg.keepindividual = 'no';                                                  % set to 'yes' if you want to preserve subject dimension
 avg_old_freq = ft_freqgrandaverage(cfg, old_freq_all{:});
 
-% Optional: plot result
+
+% Plot the results TFR
 cfg = [];
-cfg.zlim = 'maxabs'
-cfg.layout = 'EEG1010'
-cfg.xlim = [0.3 0.7];                                                       % time window
-cfg.ylim = [15 30];                                                         % frequency window (e.g. beta band)
-cfg.layout = 'EEG1010.lay';                                                 % adjust if needed
+cfg.layout       = 'EEG1010.lay';     % Adjust if you use a different system
+cfg.zlim         = 'maxabs';          % or [0 5] if you want fixed power scale
+cfg.baseline     = [0.25 0.35];       % Optional: define baseline (match your toi)
+cfg.baselinetype = 'absolute';        % or 'absolute', 'db', 'relchange'
+cfg.showlabels   = 'yes';             % Show channel labels
+
 ft_multiplotTFR(cfg, avg_old_freq);
 
 
-%% Visualization of averaged results NEEDS TO BE CHANGED!
-% cfg = [];
-% cfg.zlim = 'maxabs';
-% cfg.layout = 'EEG1010';
-% cfg.baseline = [-1 -0.5];
-% cfg.baselinetype = 'relchange';
-% cfg.showlabels = 'yes';
-% cfg.colorbar = 'yes';
-
-% Time-frequency with ERP
-figure;
-ft_multiplotTFR(cfg, old_freq_withERP);
-title('Average Time-Frequency Analysis with ERP');
-
-
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Initialize cell array
 old_mse_all = cell(1, length(old_subjects));
@@ -214,7 +200,7 @@ ft_multiplotTFR(cfg, avg_old_mse);
 
 
 %% List of young subject IDs
-young_subjects = { '5IE98', '7KI87', '4ML96', '5SR93','11VZ96','10SH95', '6AU94','7FN98','8RS89','6LA93','10PM95', '8ST94','7SU95','7SN94', '6FM97', '9JN97','7JO97', '10PM95','11JI91','6KF96'};  % Replace with actual subject IDs
+young_subjects = { '5IE98', '7KI87','6MS89', '4ML96', '5SR93','11VZ96','10SH95', '6AU94','7FN98','8RS89','6LA93','10PM95', '8ST94','7SU95','7SN94', '6FM97', '9JN97','7JO97', '10PM95','11JI91','6KF96'};  % Replace with actual subject IDs
 data_path = 'C:/Users/morit/Desktop/FoPra_Daten/Clean_Data_Entropy_Aging_Controlanalysis/Young';
 out_path = 'C:/Users/morit/Desktop/FoPra_Daten/Controlanalysis_Results/Young';
 % included young '5IE98', '7KI87', '4ML96', '5SR93','11VZ96','10SH95', '6AU94','7FN98','8RS89','6LA93','10PM95', '8ST94','7SU95','7SN94', '6FM97', '9JN97','7JO97', '10PM95','11JI91','6KF96'
@@ -233,9 +219,6 @@ for iSub = 1:length(young_subjects)
     
     % Rename the dataset to avoid confusion
     data_clean_young = data_clean;
-
-    % Preserve trial information
-    % trl = data_clean_young.cfg.trl;
 
     % Step 1: Introduce TP7 as implicit reference
     cfg = [];
@@ -271,7 +254,7 @@ for iSub = 1:length(young_subjects)
 
     % Step 5: Limit trial count for both TFR + MSE to make it comparable to the
     % blink-event analysis
-    max_trials = 40;
+    max_trials = 100;
     nTrials = length(data_clean_young.trial);
     if nTrials > max_trials
     cfg = [];
@@ -286,10 +269,10 @@ for iSub = 1:length(young_subjects)
     cfg.channel    = 'EEG';
     cfg.method     = 'mtmconvol';
     cfg.taper      = 'hanning';
-    cfg.foi        = 4:1:40;
-    cfg.t_ftimwin  = 5 ./ cfg.foi;
-    cfg.t_ftimwin(cfg.t_ftimwin > 1) = 1;           % Limit window size
-    cfg.toi        = 0.25:0.05:0.75;                % centers of windows that fully fit inside the trial
+    cfg.foi        = 2:2:80;                    % 2 to 80Hz 
+    cfg.t_ftimwin  = 5 ./ cfg.foi;              % window length
+    cfg.t_ftimwin(cfg.t_ftimwin > 1) = 1;       % Limit window size
+    cfg.toi        = 0.25:0.05:0.75;            % centers of windows that fully fit inside the trial
     cfg.keeptrials = 'yes';
 
     data_freq_young = ft_freqanalysis(cfg, data_clean_young);
@@ -359,13 +342,16 @@ end
 
 % Average over subjects
 cfg = [];
-cfg.parameter = 'sampen';
+cfg.parameter = 'powspctrm';
 cfg.keepindividual = 'no';                                                  % set to 'yes' if you want to preserve subject dimension
 avg_young_freq = ft_freqgrandaverage(cfg, young_freq_all{:});
 
-% Optional: plot result
+% Plot the results TFR
 cfg = [];
-cfg.xlim = [0.3 0.7];  % time window
-cfg.ylim = [15 30];    % frequency window (e.g. beta band)
-cfg.layout = 'EEG1010.lay';  % adjust if needed
+cfg.layout       = 'EEG1010.lay';     % Adjust if you use a different system
+cfg.zlim         = 'maxabs';          % or [0 5] if you want fixed power scale
+cfg.baseline     = [0.25 0.35];       % Optional: define baseline (match your toi)
+cfg.baselinetype = 'absolute';        % or 'absolute', 'db', 'relchange'
+cfg.showlabels   = 'yes';             % Show channel labels
+
 ft_multiplotTFR(cfg, avg_young_freq);
