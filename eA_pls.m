@@ -96,8 +96,8 @@ cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
 cfg.num_cond = 1;                           % Number of conditions
 cfg.design = [behav; behav(1:17,:)];        % append behav OA to YA
 cfg.num_subj_lst = [19 17];                 % Number of subjects per condition, array!
-cfg.interaction = 'yes'; %add group interaction to the model
-cfg.contrast = [1 -1];   % 1 for YA, -1 for OA
+cfg.interaction = 'yes'; % add group interaction to the model
+cfg.contrast = [-1 1];   % -1 for YA, 1 for OA
 stat_mse_2group = ft_freqstatistics(cfg, young_mse_all, older_mse_all);
 
 % plot 2 group PLS: 1 BSR map for LV1, but two sets of bars: for YA and OA:
@@ -125,27 +125,20 @@ title('Brain score vs behavior YA OA')
 saveas(f, 'behavPLS_MSE_2group', 'pdf');
 saveas(f, 'behavPLS_MSE_2group', 'png');
 
+%% plot YA-OA overall MSE
+load /Users/kloosterman/projectdata/EntropyAging/Stat_MSE_YA-OA.mat; % stat_mse comes out
+f = figure; f.Position = [680         624        300         150];
+tiledlayout(1,2);
+cfg.clussign = 'neg';
+cfg.layout=lay;
+cfg.clus2plot = 1; 
+cfg.integratetype = 'trapz'; % mean or trapz
+cfg.parameter = 'stat'; % use stat for main effect correlation, prob for interaction
+cfg.colormap = cmap;
+stat_mse.negclusterslabelmat = stat_mse.mask;
+cfg.ylabel = 'Time scale';
+ft_clusterplot3D(cfg, stat_mse)
 
-%% factor analysis
-behav_all = readtable('FoPra_Behavioral_Measures.xlsx');
-behavNames = string(behav_all.Properties.VariableNames);
-
-behav_of_interest = ["d2KL"	"VLMTDg1"	"VLMTDg5"	"VLMTI"	"VLMTDg7"	"VLMTW"	"VLMTW_F"...
-                      "WMT_2"	"ZahlenVor"	"ZahlenRueck"	"MWT_B"];  % "VLMTDg1_5"	 "ZahlenGes"	
-
-behav = behav_all(behav_all.Age_Group>0,:);
-behav = behav(behav.Age_Group>0, behav_of_interest);
-behav = varfun(@zscore, behav);
-
-writetable(behav, 'eA_EFAdata')
-behav = table2array(behav);
-
-figure; imagesc(cov(zscore(behav))); colorbar  % = figure; imagesc(corr(behav)); colorbar
-
-[loadings, psi, T, stats, factorScores] = factoran(behav, 2, 'scores', 'regression', 'rotate', 'promax');
-biplot(loadings,'LineWidth',2,'MarkerSize',20)
-
-YAfs = mean(factorScores(behav_all.Age_Group == 1,:))
-OAfs = mean(factorScores(behav_all.Age_Group == 2,:))
-
+saveas(f, 'MSE_YA-OA', 'pdf');
+saveas(f, 'MSE_YA-OA', 'png');
 
