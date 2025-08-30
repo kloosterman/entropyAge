@@ -136,7 +136,7 @@ cfg.design = design_matrix
 cfg.num_cond = 2;
 cfg.num_subj_lst = [nSubBlink, nSubNoBlink];
 
-stat_mse_young_condition = ft_statfun_pls(cfg, young_mse_all_concat);
+stat_mse_young_condition = ft_freqstatistics(cfg, young_mse_all_concat);
 
 
 
