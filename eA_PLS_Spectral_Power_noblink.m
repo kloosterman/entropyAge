@@ -1,4 +1,4 @@
-% PLS
+%% PLS analysis for Spectral Power in noblink data
 restoredefaultpath;
 
 % Add FieldTrip to MATLAB path
@@ -10,12 +10,6 @@ addpath('C:/Users/morit/Desktop/FoPra_Daten');
 addpath('C:/Users/morit/Desktop/Toolboxes_MATLAB/plscmd-main');
 
 behav = readtable('FoPra_Behavioral_Measures.xlsx');
-
-% Apply zscore to columns 7-12
-behav{:, 7:12} = zscore(behav{:, 7:12});
-
-% Apply zscore to columns 14-19
-behav{:, 14:19} = zscore(behav{:, 14:19});
 
 behavNames = behav.Properties.VariableNames;
 behav_young = behav(behav.Age_Group==1,:);
@@ -85,9 +79,9 @@ young_freq_all = ft_appendfreq([],young_freq{:})
 %% Step 4: Configure statistics
 cfg = [];
 cfg.layout = 'EEG1010'
-cfg.frequency = [20 100];
+cfg.frequency = [2 100];
 cfg.statistic = 'ft_statfun_pls';           % PLS statistics
-cfg.num_perm = 1000;                         % Number of permutation
+cfg.num_perm = 1000;                        % Number of permutation
 cfg.num_boot = 1000;
 cfg.method = 'analytic';                    % analytic method for statistics
 cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
@@ -99,31 +93,18 @@ cfg.num_subj_lst = size(young_freq_all.powspctrm,1); % Number of subjects per co
 %% Step 5: Compute statistics
 stat_freq_young = ft_freqstatistics(cfg, young_freq_all);
 
-%% Topoplot 100Hz doesn´t work
-% Find index for 100 Hz
-f_idx = find(stat_freq_young.freq == 100);
 
-% Create dummy TFR-like structure for topoplot
-dummy = [];
-dummy.label     = stat_freq_young.label;
-dummy.freq      = stat_freq_young.freq(f_idx);
-dummy.time      = 0;
-dummy.dimord    = 'chan_freq_time';
-dummy.powspctrm = stat_freq_young.stat(:, f_idx);  % should be [nChan x 1]
-dummy.powspctrm = reshape(dummy.powspctrm, [length(dummy.label), 1, 1]);  % enforce shape [chan x freq x time]
+%% Step 6: Plotting for younger adults
 
+% General settings
 cfg = [];
-cfg.layout    = 'EEG1010';
-cfg.colorbar  = 'yes';
-cfg.zlim      = 'maxabs';
-cfg.colormap  = jet;
+cfg.layout = 'EEG1010';
+cfg.interactive = 'no';
+cfg.zlim = 'maxabs';
+load colormap_jetlightgray.mat
+cfg.colormap = cmap;
 
-figure;
-ft_topoplotTFR(cfg, dummy);
-title('Topomap of PLS weights at 100 Hz');
-
-
-%% Channel x Frequency
+%% Step 6.1: All channels with frequency
 
 figure;
 imagesc(stat_freq_young.freq, 1:length(stat_freq_young.label), stat_freq_young.stat);
@@ -135,7 +116,7 @@ title('PLS Stat Values: Channels vs Frequencies');
 set(gca, 'YDir', 'normal');
 colormap(jet); colorbar;
 
-%% Brainscore x Behavscore
+%% Step 6.2: plot behavior x brain scores
 figure;
 scatter(stat_freq_young.behavscores, -1*stat_freq_young.brainscores, 60, 'filled', ...
     'MarkerEdgeColor', [1 1 1], 'MarkerFaceColor', [0 0 0]);
@@ -146,8 +127,72 @@ r = corr(stat_freq_young.behavscores, stat_freq_young.brainscores, 'type', 'Spea
 title(sprintf('Brain vs Behavior Scores (Spearman = %.2f)', r));
 grid on; box on;
 
+%% Step 6.3: Plot latent variable at predefined frequency bands
+
+% Define frequency bands
+bands = {
+    'Delta', [2 4];
+    'Theta', [4 8];
+    'Alpha', [8 12];
+    'Beta',  [12 30];
+    'Gamma', [30 100]
+};
+
+% Loop through bands and plot average topomap
+for b = 1:size(bands,1)
+    bandName = bands{b,1};
+    bandRange = bands{b,2};
+
+    % Find indices of frequencies within the band
+    idx_band = find(stat_freq_young.freq >= bandRange(1) & stat_freq_young.freq < bandRange(2));
+
+    % Average across those frequency bins
+    band_avg_young = mean(stat_freq_young.stat(:, idx_band), 2);
+
+    % Prepare temp structure for topoplot
+    temp = [];
+    temp.avg = band_avg_young;            % [channels x 1]
+    temp.label = stat_freq_young.label;
+    temp.dimord = 'chan_time';      % because ft_topoplotER expects chan_time
+    temp.time = 1;                  % dummy time point
+
+    % Topoplot config
+    cfg = [];
+    cfg.layout = 'EEG1010';
+    cfg.zlim = 'maxabs';
+    cfg.colorbar = 'yes';
+    cfg.colormap = cmap;
+    cfg.parameter = 'avg';
+    cfg.comment = sprintf('%s band (%.1f-%.1f Hz)', bandName, bandRange(1), bandRange(2));
+
+    % Plot
+    figure;
+    ft_topoplotER(cfg, temp);
+    title(cfg.comment);
+end
 
 
+%% Step 6.4: Plot topomap of first LV on collapsed frequencies
+% Collapse over all frequencies (e.g., average contribution across frequencies)
+collapsed_stat = mean(stat_freq_young.stat, 2);  % [channels × 1]
+
+% Prepare for topoplot
+temp = [];
+temp.avg = collapsed_stat;
+temp.label = stat_freq_young.label;
+temp.dimord = 'chan_time';  % still valid for topoplot
+temp.time = 1;
+
+cfg = [];
+cfg.layout = 'EEG1010';
+cfg.zlim = 'maxabs';
+cfg.colorbar = 'yes';
+cfg.colormap = cmap;
+cfg.parameter = 'avg';
+cfg.comment = 'Average across all frequencies';
+
+figure;
+ft_topoplotER(cfg, temp);
 
 %% Step 2: Load individual Spectral Power data for old
 old_path = 'C:/Users/morit/Desktop/FoPra_Daten/Controlanalysis_Results/Old';
@@ -178,11 +223,10 @@ end
 
 old_freq_all = ft_appendfreq([],old_freq{:})
 
-
-% Step 2: Configure statistics
+%% Step 2: Configure statistics
 cfg = [];
 cfg.layout = 'EEG1010'
-cfg.frequency = [20 100];
+cfg.frequency = [2 100];
 cfg.statistic = 'ft_statfun_pls';           % PLS statistics
 cfg.num_perm = 1000;                         % Number of permutation
 cfg.num_boot = 1000;
@@ -193,12 +237,11 @@ cfg.design = behav_old;
 cfg.num_cond = 1;                           % Number of conditions
 cfg.num_subj_lst = size(old_freq_all.powspctrm,1); % Number of subjects per condition
 
-% Step 3: Compute statistics
+%% Step 3: Compute statistics
 stat_freq_old = ft_freqstatistics(cfg, old_freq_all);
 
-
-
-%% Channel x Frequency
+%% Step 4: Plot results for older adults
+%% Step 4.1: Plot all channels with frequencies
 
 figure;
 imagesc(stat_freq_old.freq, 1:length(stat_freq_old.label), stat_freq_old.stat);
@@ -210,7 +253,7 @@ title('PLS Stat Values: Channels vs Frequencies');
 set(gca, 'YDir', 'normal');
 colormap(jet); colorbar;
 
-%% Brainscore x Behavscore
+%% Step 4.2: plot behavior x brain scores
 figure;
 scatter(-1*stat_freq_old.behavscores, -1*stat_freq_old.brainscores, 60, 'filled', ...
     'MarkerEdgeColor', [1 1 1], 'MarkerFaceColor', [0 0 0]);                        % multiplied with -1 for interpretation
@@ -220,3 +263,68 @@ ylabel('Brain Scores');
 r = corr(stat_freq_old.behavscores, stat_freq_old.brainscores, 'type', 'Spearman');
 title(sprintf('Brain vs Behavior Scores (Spearman = %.2f)', r));
 grid on; box on;
+
+%% Step 4.3: Plot latent variable at predefined frequency bands
+% Define frequency bands
+bands = {
+    'Delta', [2 4];
+    'Theta', [4 8];
+    'Alpha', [8 12];
+    'Beta',  [12 30];
+    'Gamma', [30 100]
+};
+
+% Loop through bands and plot average topomap
+for b = 1:size(bands,1)
+    bandName = bands{b,1};
+    bandRange = bands{b,2};
+
+    % Find indices of frequencies within the band
+    idx_band = find(stat_freq_old.freq >= bandRange(1) & stat_freq_old.freq < bandRange(2));
+
+    % Average across those frequency bins
+    band_avg_old = mean(stat_freq_old.stat(:, idx_band), 2);
+
+    % Prepare temp structure for topoplot
+    temp = [];
+    temp.avg = band_avg_old;            % [channels x 1]
+    temp.label = stat_freq_old.label;
+    temp.dimord = 'chan_time';      % because ft_topoplotER expects chan_time
+    temp.time = 1;                  % dummy time point
+
+    % Topoplot config
+    cfg = [];
+    cfg.layout = 'EEG1010';
+    cfg.zlim = 'maxabs';
+    cfg.colorbar = 'yes';
+    cfg.colormap = cmap;
+    cfg.parameter = 'avg';
+    cfg.comment = sprintf('%s band (%.1f-%.1f Hz)', bandName, bandRange(1), bandRange(2));
+
+    % Plot
+    figure;
+    ft_topoplotER(cfg, temp);
+    title(cfg.comment);
+end
+
+%% Step 4.4: Plot topomap of LV on collapsed frequencies
+% Collapse over all frequencies (e.g., average contribution across frequencies)
+collapsed_stat = mean(stat_freq_old.stat, 2);  % [channels × 1]
+
+% Prepare for topoplot
+temp = [];
+temp.avg = collapsed_stat;
+temp.label = stat_freq_old.label;
+temp.dimord = 'chan_time';  % still valid for topoplot
+temp.time = 1;
+
+cfg = [];
+cfg.layout = 'EEG1010';
+cfg.zlim = 'maxabs';
+cfg.colorbar = 'yes';
+cfg.colormap = cmap;
+cfg.parameter = 'avg';
+cfg.comment = 'Average across all frequencies';
+
+figure;
+ft_topoplotER(cfg, temp);

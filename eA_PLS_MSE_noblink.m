@@ -11,12 +11,6 @@ addpath('C:/Users/morit/Desktop/Toolboxes_MATLAB/plscmd-main');
 
 behav = readtable('FoPra_Behavioral_Measures.xlsx');
 
-% Apply zscore to columns 7-12
-behav{:, 7:12} = zscore(behav{:, 7:12});
-
-% Apply zscore to columns 14-19
-behav{:, 14:19} = zscore(behav{:, 14:19});
-
 behavNames = behav.Properties.VariableNames;
 behav_young = behav(behav.Age_Group==1,:);
 behav_young = table2array(behav_young(:,7:19));
@@ -88,7 +82,7 @@ cfg = [];
 cfg.layout = 'EEG1010'
 cfg.frequency = [20 100];
 cfg.statistic = 'ft_statfun_pls';           % PLS statistics
-cfg.num_perm = 1000;                         % Number of permutation
+cfg.num_perm = 1000;                        % Number of permutation
 cfg.num_boot = 1000;
 cfg.method = 'analytic';                    % analytic method for statistics
 cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
@@ -109,27 +103,13 @@ cfg.zlim = 'maxabs';
 load colormap_jetlightgray.mat
 cfg.colormap = cmap;
 
-%% Step 4.1 Plot Latent Variable at Timescale 100
-
-f = find(stat_mse_young.freq == 100);
-dummy = [];
-dummy.label = stat_mse_young.label;
-dummy.dimord = 'chan_freq_time';
-dummy.freq = stat_mse_young.freq(f);
-dummy.time = 0; % dummy time
-dummy.powspctrm = reshape(stat_mse_young.stat(:,f), [length(stat_mse_young.label), 1, 1]);
-
-figure;
-ft_topoplotTFR(cfg, dummy);
-title('YA Topomap at timescale 100');
-
-%% Step 4.2 Plot all channels with the timescales
+%% Step 4.1 Plot all channels with the timescales
 
 figure;
 
 imagesc(stat_mse_young.freq, 1:length(stat_mse_young.label), stat_mse_young.stat);
 
-xlabel('Timescale (Hz)');
+xlabel('Timescale');
 ylabel('Channels');
 yticks(1:length(stat_mse_young.label));
 yticklabels(stat_mse_young.label);
@@ -138,7 +118,7 @@ colorbar;
 title('PLS Stat Values: YA Channels vs Timescales');
 colormap(jet);
 
-%% Step 4.3: Plot behavior x brain scores
+%% Step 4.2 Plot behavior x brain scores
 figure;
 scatter(-1*stat_mse_young.behavscores, stat_mse_young.brainscores, 40, 'k', 'filled', ...
     'MarkerEdgeColor', [1 1 1], 'LineWidth', 1.0);                                      % multiplied with -1 for the interpretation
@@ -155,9 +135,7 @@ lsline;
 r = corr(stat_mse_young.behavscores, stat_mse_young.brainscores, 'Type', 'Spearman');
 title(sprintf('Behavior vs Brain Scores (Spearman = %.2f)', r));
 
-
-
-%% Step 4.4: Plot latent variable at all timescales
+%% Step 4.3: Plot latent variable at all timescales
 
 for idx = 1:length(stat_mse_young.freq)
     temp = [];
@@ -170,7 +148,6 @@ for idx = 1:length(stat_mse_young.freq)
     cfg.layout = 'EEG1010';
     cfg.zlim = 'maxabs';
     cfg.colorbar = 'yes';
-    load colormap_jetlightgray.mat
     cfg.colormap = cmap;
     cfg.parameter = 'avg';
     cfg.comment = sprintf('Timescale %d', stat_mse_young.freq(idx));
@@ -258,26 +235,13 @@ cfg.zlim = 'maxabs';
 load colormap_jetlightgray.mat
 cfg.colormap = cmap;
 
-%% Step 4.1: Plot latent variable at timescale 100
-f = find(stat_mse_old.freq == 100);
-dummy = [];
-dummy.label = stat_mse_old.label;
-dummy.dimord = 'chan_freq_time';
-dummy.freq = stat_mse_old.freq(f);
-dummy.time = 0; % dummy time
-dummy.powspctrm = reshape(stat_mse_old.stat(:,f), [length(stat_mse_old.label), 1, 1]);
-
-figure;
-ft_topoplotTFR(cfg, dummy);
-title('OA Topomap at timescale 100');
-
-%% Step 4.2: Plot all channels with the timescale
+%% Step 4.1: Plot all channels with the timescale
 
 figure;
 
 imagesc(stat_mse_old.freq, 1:length(stat_mse_old.label), stat_mse_old.stat);
 
-xlabel('Timescale (Hz)');
+xlabel('Timescale');
 ylabel('Channels');
 yticks(1:length(stat_mse_old.label));
 yticklabels(stat_mse_old.label);
@@ -286,7 +250,7 @@ colorbar;
 title('PLS Stat Values: OA Channels vs Timescales');
 colormap(jet);
 
-%% Step 4.3: Plot behavior vs. brain scores
+%% Step 4.2: Plot behavior vs. brain scores
 figure;
 scatter(-1*stat_mse_old.behavscores, -1*stat_mse_old.brainscores, 40, 'k', 'filled', ...
     'MarkerEdgeColor', [1 1 1], 'LineWidth', 1.0);                                      % multiplied with -1 for the interpretation
@@ -303,7 +267,7 @@ lsline;
 r = corr(stat_mse_old.behavscores, stat_mse_old.brainscores, 'Type', 'Spearman');
 title(sprintf('Behavior vs Brain Scores (Spearman = %.2f)', r));
 
-%% Step 4.4: Plot latent variable at all timescales
+%% Step 4.3: Plot latent variable at all timescales
 
 for idx = 1:length(stat_mse_old.freq)
     temp = [];
@@ -316,7 +280,6 @@ for idx = 1:length(stat_mse_old.freq)
     cfg.layout = 'EEG1010';
     cfg.zlim = 'maxabs';
     cfg.colorbar = 'yes';
-    load colormap_jetlightgray.mat
     cfg.colormap = cmap;
     cfg.parameter = 'avg';
     cfg.comment = sprintf('Timescale %d', stat_mse_old.freq(idx));
@@ -327,10 +290,7 @@ end
 
 
 
-
-
-
-%% Original plotting code doesn´t work
+%% Original plotting code doesn´t work because there is no time dimension
 cfg =[]; 
 cfg.layout='EEG1010';
 cfg.parameter = 'stat';
