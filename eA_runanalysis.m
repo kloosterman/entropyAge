@@ -1,11 +1,12 @@
 % basic scripts to start the resting state data analysis
 
-% restoredefaultpath
+restoredefaultpath; clear all
 if ismac
     basepath = '/Users/kloosterman/Documents/GitHub/'; % local
     backend = 'none'; % local torque2    addpath(fullfile(basepath, 'MEG2afc'))
     addpath(genpath(fullfile(basepath, 'plotting-tools/')))
     addpath(genpath(fullfile(basepath, 'stats_tools/')))
+    toolspath = '/Users/kloosterman/Documents/GitHub/';
     addpath(fullfile('/Users/kloosterman/Dropbox/tardis_code/MATLAB/tools/NoiseTools')) % robust detrend (MSE)
 else
     basepath = '/mnt/beegfs/home/kloosterman/GitHub'; % on the cluster
@@ -18,6 +19,13 @@ ft_defaults
 addpath(fullfile(basepath, 'zapline-plus')) 
 addpath(fullfile(basepath, 'qsub-tardis')) %inc JJ edit ft_artifact_zvalue
 
+addpath('/Users/kloosterman/Documents/GitHub/fieldtrip_dev')
+addpath(fullfile(toolspath, 'plscmd'))
+
+set(groot,'defaultTextInterpreter','none')
+set(groot,'defaultAxesTickLabelInterpreter','none')
+set(groot,'defaultLegendInterpreter','none')
 %% preprocessing EEG data
 eA_preproc_setup()
 
+plot_PLSC_blinkresults
