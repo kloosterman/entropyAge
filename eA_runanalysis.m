@@ -26,6 +26,16 @@ set(groot,'defaultTextInterpreter','none')
 set(groot,'defaultAxesTickLabelInterpreter','none')
 set(groot,'defaultLegendInterpreter','none')
 %% preprocessing EEG data
-eA_preproc_setup()
+eA_preproc_setup() % done by Moritz
 
-plot_PLSC_blinkresults
+runPLSanalyses
+
+%% plot YA vs OA taskPLS and time courses blink data
+plot_taskPLS_YAvsOA 
+
+%% plot behavior pls blink data
+
+plot_PLSCblinkresults % behav PLS
+plot_PLSCcorr_blink % corr bar plots
+plotBS_taskPLSvsRawbehavior % task PLS BS vs behavior
+

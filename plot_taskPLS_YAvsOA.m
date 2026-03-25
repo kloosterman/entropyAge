@@ -1,18 +1,35 @@
+
+%% plot 
 close all
-
-folder = "/Users/kloosterman/Library/CloudStorage/OneDrive-Personal/Documents/Entropy_in_aging/stats_structs";
-cd(folder)
-plotfolder = "/Users/kloosterman/Library/CloudStorage/OneDrive-Personal/Documents/Entropy_in_aging/plots";
-
-load young_mse_all.mat
-load old_mse_all.mat
 
 load colormap_jetlightgray.mat
 
-% cfg=[];
-% cfg.layout = 'EEG1010.lay';
-% cfg.interactive = 'yes';
-% ft_multiplotTFR(cfg, young_mse_all)
+fig=figure;
+tiledlayout(2,3)
+fig.Position = [451   695   607   254];
+
+cfg=[];
+cfg.layout = 'EEG1010.lay';
+cfg.clus2plot = 1;
+cfg.clussign = 'pos';
+cfg.integratetype = 'trapz'; % mean or trapz
+cfg.subplotsize = [2 4]; % 2 rows, 2 topo/TFR couples
+cfg.subplotind = [1 2];
+cfg.parameter = 'stat';
+cfg.colormap = cmap;
+cfg.ylabel = 'Time scale (ms)';
+
+ft_clusterplot3D(cfg, stat_mse_2group_task)
+
+%% export and save
+fig.Units = 'centimeters';
+fig.Position(3:4) = [13 8];   % figure size: 12 × 8 cm
+
+fig.PaperUnits = 'centimeters';
+fig.PaperSize = [13 8];
+fig.PaperPosition = [0 0 13 8];
+
+exportgraphics(fig,fullfile(plotfolder, 'taskPLS_YAvsOA.pdf'),'ContentType','vector')
 
 %% plot mMSE time courses
 close all
@@ -143,21 +160,3 @@ set(gcf,'Units','centimeters')
 set(gcf,'Position',[5 5 10 7])   % [x y width height]
 
 exportgraphics(gcf,fullfile(plotfolder, 'MSEtimecourses.pdf'),'ContentType','vector')
-
-%% slope
-close all
-young_mse_all_diff = young_mse_all_slow;
-young_mse_all_diff.powspctrm = diff(young_mse_all_diff.powspctrm,1,4);
-young_mse_all_diff.time = young_mse_all_diff.time(1:end-1);
-
-old_mse_all_diff = old_mse_all_slow;
-old_mse_all_diff.powspctrm = diff(old_mse_all_diff.powspctrm,1,4);
-old_mse_all_diff.time = old_mse_all_diff.time(1:end-1);
-
-cfg=[];
-cfg.layout = 'EEG1010.lay';
-cfg.interactive = 'yes';
-cfg.xlim = [-1 1];
-% cfg.ylim = [1 1.25];
-ft_multiplotER(cfg, old_mse_all_diff, young_mse_all_diff)
-

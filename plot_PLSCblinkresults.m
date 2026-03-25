@@ -1,68 +1,11 @@
-
-folder = "/Users/kloosterman/Library/CloudStorage/OneDrive-Personal/Documents/Entropy_in_aging/stats_structs";
-cd(folder)
-plotfolder = "/Users/kloosterman/Library/CloudStorage/OneDrive-Personal/Documents/Entropy_in_aging/plots";
-
-out = 2; % remove YA subject 2
-out_bool = true(20,1);
-% out_bool(out) = false;
-
-loadstat = 0;
-if loadstat == 1  
-  load stat_mse_2group_blink.mat
-  % load stat_mse_2group_blink_modulation.mat
-else % run the behav pls here
-  load young_mse_all.mat
-  young_mse_all.powspctrm = young_mse_all.powspctrm(out_bool,:,:,:);
-  load old_mse_all.mat
-  load behav.mat
-  % behav = behav([1 3:end],:); % HACK to remove subj 2!
-
-  cfg = [];
-  cfg.frequency = [20 100];
-  cfg.statistic = 'ft_statfun_pls';           % PLS statistics
-  cfg.num_perm = 1000;                         % Number of permutation
-  cfg.num_boot = 1000;
-  cfg.method = 'analytic';                    % analytic method for statistics
-  cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
-  cfg.cormode = 8;                            % 0 is Pearson corr, 8 is Spearman
-  cfg.num_cond = 1;                           % Number of conditions
-  cfg.design = behav;        % append behav OA to YA
-  cfg.num_subj_lst = [size(young_mse_all.powspctrm,1) size(old_mse_all.powspctrm,1)];                 % Number of subjects per condition, array!
-  stat_mse_2group = ft_freqstatistics(cfg, young_mse_all, old_mse_all);
-
-  stat_mse_2group.posclusterslabelmat = stat_mse_2group.stat > 3 | stat_mse_2group.stat < -3;
-end
-
-% flip brain and behav scores YA
-stat_mse_2group.brainscores{1}(:,1) = -stat_mse_2group.brainscores{1}(:,1);
-stat_mse_2group.behavscores{1}(:,1) = -stat_mse_2group.behavscores{1}(:,1);
-
-% flip brain and behav scores OA
-stat_mse_2group.brainscores{2}(:,1) = -stat_mse_2group.brainscores{2}(:,1);
-stat_mse_2group.behavscores{2}(:,1) = -stat_mse_2group.behavscores{2}(:,1);
-
-% flip BSRs too
-stat_mse_2group.stat = -stat_mse_2group.stat;
-
-tmp = stat_mse_2group.boot_res.ulcorr;
-stat_mse_2group.boot_res.ulcorr = - stat_mse_2group.boot_res.llcorr;
-stat_mse_2group.boot_res.llcorr = - tmp;
-
-% which YA is the outlier
-% Identify outliers based on a threshold
-outlierThreshold = 3; % Define a z-score threshold for outliers
-outlierYA = abs(zscore(stat_mse_2group.brainscores{1}(:,1))) > outlierThreshold;
-find(outlierYA)
-
-%% plot integrated topo
+%% plot integrated TFR and topo
 close all
 
 f=figure;
 
 load colormap_jetlightgray.mat
 
-t = tiledlayout(2,3)
+t = tiledlayout(3,3);
 
 % f.Position = [451   695   607   254];
 
@@ -77,7 +20,7 @@ cfg.parameter = 'stat';
 cfg.colormap = cmap;
 cfg.ylabel = 'Time scale (ms)';
 cfg.titleTFR = 'Feature reliability';
-ft_clusterplot3D(cfg, stat_mse_2group)
+ft_clusterplot3D(cfg, stat_mse_2group_behav)
 
 
 % plot scatters
@@ -94,17 +37,17 @@ h_scatter = gobjects(1,2);
 for igroup = 1:2
 
   if zscore_scores
-    behav_score = zscore(stat_mse_2group.behavscores{igroup}(:,1));
-    brain_score = zscore(stat_mse_2group.brainscores{igroup}(:,1));
+    behav_score = zscore(stat_mse_2group_behav.behavscores{igroup}(:,1));
+    brain_score = zscore(stat_mse_2group_behav.brainscores{igroup}(:,1));
   else
-    behav_score = stat_mse_2group.behavscores{igroup}(:,1);
-    brain_score = stat_mse_2group.brainscores{igroup}(:,1);
+    behav_score = stat_mse_2group_behav.behavscores{igroup}(:,1);
+    brain_score = stat_mse_2group_behav.brainscores{igroup}(:,1);
   end
 
     r(igroup) = corr(behav_score, brain_score, 'rows', 'complete');
 
     % scatter (store handle)
-    h_scatter(igroup) = scatter(behav_score, brain_score, 30, 'filled', ...
+    h_scatter(igroup) = scatter( brain_score, behav_score, 30, 'filled', ...
         'MarkerFaceColor', cols(igroup,:), ...
         'MarkerEdgeColor', [1 1 1], ...
         'LineWidth', 0.5);
@@ -117,11 +60,8 @@ for igroup = 1:2
     plot(xfit, yfit, '-', 'Color', cols(igroup,:), 'LineWidth', 2);
 end
 
-% xlabel('Behavior score (z)')
-% ylabel('brain_score score (z)')
-
-xlabel('Behavior score')
-ylabel('brain_score score')
+ylabel('Behavior score (z)')
+xlabel('Brain score (z)')
 
 % legend(h_scatter, {'Young','Older'}, 'Location', 'best')
 l = legend(h_scatter, ...
@@ -131,34 +71,37 @@ l = legend(h_scatter, ...
 % l.Position = [0.7630 0.5907 0.1389 0.1017];
 % legend boxoff
 axis padded
+set(gca, 'LineWidth', 0.5)
 
 % title(sprintf('Young: r = %.2f \n Older: r = %.2f', r(1), r(2)))
-p_lv = stat_mse_2group.results.perm_result.sprob(1);
-title(sprintf('Latent level, p = %.3f', p_lv), 'FontSize',10)
+p_lv = stat_mse_2group_behav.results.perm_result.sprob(1);
+title(sprintf('Latent level, p = %.3f', p_lv), 'FontSize',9)
 
 box off
-set(gca,'LineWidth',1)
-
 f = gcf;
 
 f.Units = 'centimeters';
-f.Position(3:4) = [13 8];   % figure size: 12 × 8 cm
+f.Position(3:4) = [13 13];   % figure size: 12 × 8 cm
 
 f.PaperUnits = 'centimeters';
 f.PaperSize = [13 8];
 f.PaperPosition = [0 0 13 8];
 % set(gcf, 'Renderer', 'painters')
 
-exportgraphics(f,fullfile(plotfolder, 'PLSC_blink.pdf'),'ContentType','vector', 'BackgroundColor', 'white')
-exportgraphics(f,fullfile(plotfolder, 'PLSC_blink.png'),'Resolution',300,  'BackgroundColor', 'white')
+% exportgraphics(f,fullfile(plotfolder, 'PLSC_blink.pdf'),'ContentType','vector', 'BackgroundColor', 'white')
+% exportgraphics(f,fullfile(plotfolder, 'PLSC_blink.png'),'Resolution',300,  'BackgroundColor', 'white')
+
+
+
+
 
 % %% plot bar plots Young and Older brain_score Score vs Behavior
 % 
-% behav_YA = stat_mse_2group.results.stacked_behavdata(1:20,:);
-% behav_OA = stat_mse_2group.results.stacked_behavdata(21:end,:);
+% behav_YA = stat_mse_2group_behav.results.stacked_behavdata(1:20,:);
+% behav_OA = stat_mse_2group_behav.results.stacked_behavdata(21:end,:);
 % 
-% brainscore_YA = stat_mse_2group.brainscores{1}(:,1);
-% brainscore_OA = stat_mse_2group.brainscores{2}(:,1);
+% brainscore_YA = stat_mse_2group_behav.brainscores{1}(:,1);
+% brainscore_OA = stat_mse_2group_behav.brainscores{2}(:,1);
 % 
 
 
