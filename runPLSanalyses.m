@@ -6,6 +6,10 @@ plotfolder = "/Users/kloosterman/Library/CloudStorage/OneDrive-Personal/Document
 
 load young_mse_all.mat
 load old_mse_all.mat
+load behav.mat
+
+% drop subjects if necessary
+
 
 %% task PLS YA vs OA BLINK data
 cfg = [];
@@ -17,9 +21,6 @@ cfg.method = 'analytic';                    % analytic method for statistics
 cfg.pls_method = 1;                         % 1 is taskPLS; 3 is behavPLS
 cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
 cfg.num_cond = 1;                           % Number of conditions
-% cfg.interaction = 'yes'; % add group interaction to the model
-% cfg.contrast = [-1 1];   % -1 for YA, 1 for OA
-% cfg.design = [behav; behav(1:17,:)];        % append behav OA to YA
 cfg.design = ones([1 39]);
 cfg.num_subj_lst = [20 19];                 % Number of subjects per condition, array!
 stat_mse_2group_task = ft_freqstatistics(cfg, young_mse_all, old_mse_all);
@@ -45,7 +46,6 @@ else % run the behav pls here
   load young_mse_all.mat
   young_mse_all.powspctrm = young_mse_all.powspctrm(out_bool,:,:,:);
   load old_mse_all.mat
-  load behav.mat
 
   % Split into groups
   behav_YA = behav(1:20,:);
@@ -67,35 +67,44 @@ else % run the behav pls here
   cfg = [];
   cfg.frequency = [20 100];
   cfg.statistic = 'ft_statfun_pls';           % PLS statistics
-  cfg.num_perm = 10000;                         % Number of permutation
-  cfg.num_boot = 10000;
+  cfg.num_perm = 1000;                         % Number of permutation
+  cfg.num_boot = 1000;
   cfg.method = 'analytic';                    % analytic method for statistics
   cfg.pls_method = 3;                         % 1 is taskPLS; 3 is behavPLS
   cfg.cormode = 0;                            % 0 is Pearson corr, 8 is Spearman
   cfg.num_cond = 1;                           % Number of conditions
-  cfg.design = behav;        % append behav OA to YA
+  % cfg.design = behav;        % append behav OA to YA
+  cfg.design = zscore(behav_domains);        % append behav OA to YA
   cfg.num_subj_lst = [size(young_mse_all.powspctrm,1) size(old_mse_all.powspctrm,1)];                 % Number of subjects per condition, array!
   stat_mse_2group_behav = ft_freqstatistics(cfg, young_mse_all, old_mse_all);
 
   stat_mse_2group_behav.posclusterslabelmat = stat_mse_2group_behav.stat > 3 | stat_mse_2group_behav.stat < -3;
 end
 
-% flip brain and behav scores YA
-stat_mse_2group_behav.brainscores{1}(:,1) = -stat_mse_2group_behav.brainscores{1}(:,1);
-stat_mse_2group_behav.behavscores{1}(:,1) = -stat_mse_2group_behav.behavscores{1}(:,1);
+% flip brain and behav scores YA for LV1 and 2
+for ilv = 1:2
+  stat_mse_2group_behav.brainscores{1}(:,ilv) = -stat_mse_2group_behav.brainscores{1}(:,ilv);
+  stat_mse_2group_behav.behavscores{1}(:,ilv) = -stat_mse_2group_behav.behavscores{1}(:,ilv);
+  % flip brain and behav scores OA
+  stat_mse_2group_behav.brainscores{2}(:,ilv) = -stat_mse_2group_behav.brainscores{2}(:,ilv);
+  stat_mse_2group_behav.behavscores{2}(:,ilv) = -stat_mse_2group_behav.behavscores{2}(:,ilv);
+  % flip confidence intervals
+  stat_mse_2group_behav.boot_res.ulcorr(:,ilv) = - stat_mse_2group_behav.boot_res.llcorr(:,ilv);
+  stat_mse_2group_behav.results.boot_result.compare_u(:,ilv) = -stat_mse_2group_behav.results.boot_result.compare_u(:,ilv);
+end
 
-% flip brain and behav scores OA
-stat_mse_2group_behav.brainscores{2}(:,1) = -stat_mse_2group_behav.brainscores{2}(:,1);
-stat_mse_2group_behav.behavscores{2}(:,1) = -stat_mse_2group_behav.behavscores{2}(:,1);
-
-% flip BSRs too
+% flip BSRs too; LV1 by default in stat.stat
 stat_mse_2group_behav.stat = -stat_mse_2group_behav.stat;
 
-tmp = stat_mse_2group_behav.boot_res.ulcorr;
-stat_mse_2group_behav.boot_res.ulcorr = - stat_mse_2group_behav.boot_res.llcorr;
-stat_mse_2group_behav.boot_res.llcorr = - tmp;
+% tmp = stat_mse_2group_behav.boot_res.ulcorr;
+% stat_mse_2group_behav.boot_res.ulcorr = - stat_mse_2group_behav.boot_res.llcorr;
+% stat_mse_2group_behav.boot_res.llcorr = - tmp;
 
 % save to disk
-save(fullfile(plotfolder, 'behavPLS_2group_blink'), 'stat_mse_2group_behav')
+% save(fullfile(plotfolder, 'behavPLS_2group_blink'), 'stat_mse_2group_behav')
 
 %% TODO no blink
+
+%% TODO no blink modulation
+
+

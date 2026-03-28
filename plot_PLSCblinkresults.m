@@ -1,4 +1,8 @@
 %% plot integrated TFR and topo
+
+statdims = size(stat_mse_2group_behav.stat);
+stat_mse_2group_behav.stat = reshape(stat_mse_2group_behav.results.boot_result.compare_u(:,LVsel), statdims); % bootstrap ratios
+
 close all
 
 f=figure;
@@ -22,7 +26,6 @@ cfg.ylabel = 'Time scale (ms)';
 cfg.titleTFR = 'Feature reliability';
 ft_clusterplot3D(cfg, stat_mse_2group_behav)
 
-
 % plot scatters
 zscore_scores = 1;
 nexttile(1)
@@ -37,11 +40,11 @@ h_scatter = gobjects(1,2);
 for igroup = 1:2
 
   if zscore_scores
-    behav_score = zscore(stat_mse_2group_behav.behavscores{igroup}(:,1));
-    brain_score = zscore(stat_mse_2group_behav.brainscores{igroup}(:,1));
+    behav_score = zscore(stat_mse_2group_behav.behavscores{igroup}(:,LVsel));
+    brain_score = zscore(stat_mse_2group_behav.brainscores{igroup}(:,LVsel));
   else
-    behav_score = stat_mse_2group_behav.behavscores{igroup}(:,1);
-    brain_score = stat_mse_2group_behav.brainscores{igroup}(:,1);
+    behav_score = stat_mse_2group_behav.behavscores{igroup}(:,LVsel);
+    brain_score = stat_mse_2group_behav.brainscores{igroup}(:,LVsel);
   end
 
     r(igroup) = corr(behav_score, brain_score, 'rows', 'complete');
@@ -72,12 +75,40 @@ l = legend(h_scatter, ...
 % legend boxoff
 axis padded
 set(gca, 'LineWidth', 0.5)
+box off
 
 % title(sprintf('Young: r = %.2f \n Older: r = %.2f', r(1), r(2)))
-p_lv = stat_mse_2group_behav.results.perm_result.sprob(1);
-title(sprintf('Latent level, p = %.3f', p_lv), 'FontSize',9)
+p_lv = stat_mse_2group_behav.results.perm_result.sprob(LVsel);
+% title(sprintf('Latent level, p = %.3f', p_lv), 'FontSize',9)
+title(sprintf('Brain vs Behavior\nLatent Level '), 'FontSize',9)
 
-box off
+nexttile(2) % TFR
+ax=gca;
+if LVsel == 1
+  ax.CLim = [-40 40];
+elseif LVsel == 3
+  ax.CLim = [-8 8];
+end
+
+
+s = stat_mse_2group_behav.results.s;
+
+text(1.5,100, sprintf('LV%d p = %.3f\nExpl = %.2f', LVsel, p_lv, s(LVsel)/sum(s)), 'FontSize',9)
+nexttile(3) % topo
+ax=gca; 
+if LVsel == 1
+  ax.CLim = [-200 200];
+elseif LVsel == 3
+  ax.CLim = [-35 35];
+end
+ax.Position = [0.1 0.1 0.8 0.8];  % [left bottom width height]
+
+cb = findobj(gcf, 'Type', 'ColorBar');
+cbtopo = cb(1);
+cbtopo.Position = [0.88 0.775 0.0082 0.0665];
+cbtfr = cb(2);
+cbtfr.Position = [0.66 0.775 0.0082 0.0665];
+
 f = gcf;
 
 f.Units = 'centimeters';

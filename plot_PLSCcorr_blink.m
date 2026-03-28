@@ -10,24 +10,10 @@ load colormap_jetlightgray.mat
 % SETTINGS
 % =========================
 
-% Choose which behavioral variables to include
-% Indices refer to ORIGINAL behavioral variable order:
-% 1 d2
-% 2 VLMT 1–5
-% 3 VLMT 1
-% 4 VLMT 5
-% 5 VLMT Interf.
-% 6 VLMT Delayed
-% 7 WMT-2
-% 8 Digit span total
-% 9 Digit span forw.
-% 10 Digit span backw.
-% 11 MWT-B
-corrtype = "Pearson"; % pearson Spearman
-plotinfig = 1
+corrtype = "Pearson"; % "Pearson" or "Spearman"
+plotinfig = 1;
+plotsel = 1;
 
-plotsel = 1
-% Pretty labels in ORIGINAL order
 pretty_labels_all = {
   'd2'
   'VLMT 1–5'
@@ -41,15 +27,12 @@ pretty_labels_all = {
   'Digit span backw.'
   'MWT-B'
   };
+
 if plotsel
-  behavoi = [8 2 11];   % e.g. WM, Learning & Memory, Crystallized IQ
-  domain_labels = {
-    'Working Memory'
-    'Learning & Memory'
-    'Crystallized IQ'
-    };
+  behavoi = 1:5;
+  domain_labels = domain_tbl.Properties.VariableNames';
 else
-  behavoi = 1:11;   % e.g. WM, Learning & Memory, Crystallized IQ
+  behavoi = 1:11;
   domain_labels = pretty_labels_all;
 end
 
@@ -62,55 +45,85 @@ outfile = 'brain_behav_agediff_blink_oi';
 behav_YA_all = stat_mse_2group_behav.results.stacked_behavdata(1:20,:);
 behav_OA_all = stat_mse_2group_behav.results.stacked_behavdata(21:end,:);
 
-brainscore_YA = stat_mse_2group_behav.brainscores{1}(:,1);
-brainscore_OA = stat_mse_2group_behav.brainscores{2}(:,1);
+brainscore_YA = stat_mse_2group_behav.brainscores{1}(:,LVsel);
+brainscore_OA = stat_mse_2group_behav.brainscores{2}(:,LVsel);
+
+% combined
+behav_ALL_all = [behav_YA_all; behav_OA_all];
+brainscore_ALL = [brainscore_YA; brainscore_OA];
 
 % Select only variables of interest
-behav_YA = behav_YA_all(:, behavoi);
-behav_OA = behav_OA_all(:, behavoi);
-pretty_labels = pretty_labels_all(behavoi);
+behav_YA  = behav_YA_all(:, behavoi);
+behav_OA  = behav_OA_all(:, behavoi);
+behav_ALL = behav_ALL_all(:, behavoi);
 
+pretty_labels = pretty_labels_all(behavoi);
 nBehav = numel(behavoi);
 
 %% =========================
 % CORRELATIONS
 % =========================
 
-r_YA = nan(1,nBehav);
-r_OA = nan(1,nBehav);
+r_YA  = nan(1,nBehav);
+r_OA  = nan(1,nBehav);
+r_ALL = nan(1,nBehav);
 
 for ib = 1:nBehav
-    r_YA(ib) = corr(behav_YA(:,ib), brainscore_YA, 'rows', 'complete', 'Type',corrtype);
-    r_OA(ib) = corr(behav_OA(:,ib), brainscore_OA, 'rows', 'complete', 'Type',corrtype);
+    r_YA(ib)  = corr(behav_YA(:,ib),  brainscore_YA,  'rows','complete','Type',corrtype);
+    r_OA(ib)  = corr(behav_OA(:,ib),  brainscore_OA,  'rows','complete','Type',corrtype);
+    r_ALL(ib) = corr(behav_ALL(:,ib), brainscore_ALL, 'rows','complete','Type',corrtype);
 end
 
 r_diff = r_OA - r_YA;
 
 %% =========================
-% BOOTSTRAP CI FOR YA / OA
+% BOOTSTRAP CI FOR YA / OA / ALL
 % =========================
 
 ul = stat_mse_2group_behav.boot_res.ulcorr;
 ll = stat_mse_2group_behav.boot_res.llcorr;
 
-% In full output: rows 1:11 = YA, 12:22 = OA
-ul_YA_all = ul(1:11,1)';
-ll_YA_all = ll(1:11,1)';
-ul_OA_all = ul(12:22,1)';
-ll_OA_all = ll(12:22,1)';
+% YA/OA from PLS bootstrap output
+ul_YA_all = ul(1:nBehav,LVsel)';
+ll_YA_all = ll(1:nBehav,LVsel)';
+ul_OA_all = ul(nBehav+1:end,LVsel)';
+ll_OA_all = ll(nBehav+1:end,LVsel)';
 
-% Select only variables of interest
 ul_YA = ul_YA_all(behavoi);
 ll_YA = ll_YA_all(behavoi);
 ul_OA = ul_OA_all(behavoi);
 ll_OA = ll_OA_all(behavoi);
 
+% bootstrap CI for ALL subjects
+rng(1)
+nBoot = 5000;
+
+ll_ALL = nan(1,nBehav);
+ul_ALL = nan(1,nBehav);
+
+for ib = 1:nBehav
+    xA = behav_ALL(:,ib);
+    yA = brainscore_ALL;
+
+    validA = ~isnan(xA) & ~isnan(yA);
+    xA = xA(validA);
+    yA = yA(validA);
+
+    nA = numel(xA);
+    boot_r = nan(nBoot,1);
+
+    for b = 1:nBoot
+        idxA = randi(nA, nA, 1);
+        boot_r(b) = corr(xA(idxA), yA(idxA), 'Type', corrtype);
+    end
+
+    ll_ALL(ib) = prctile(boot_r, 2.5);
+    ul_ALL(ib) = prctile(boot_r, 97.5);
+end
+
 %% =========================
 % BOOTSTRAP CI FOR OA - YA DIFFERENCE
 % =========================
-
-rng(1)
-nBoot = 5000;
 
 ll_diff = nan(1,nBehav);
 ul_diff = nan(1,nBehav);
@@ -138,8 +151,8 @@ for ib = 1:nBehav
         idxY = randi(nY, nY, 1);
         idxO = randi(nO, nO, 1);
 
-        rYb = corr(xY(idxY), yY(idxY));
-        rOb = corr(xO(idxO), yO(idxO));
+        rYb = corr(xY(idxY), yY(idxY), 'Type', corrtype);
+        rOb = corr(xO(idxO), yO(idxO), 'Type', corrtype);
 
         boot_diff(b) = rOb - rYb;
     end
@@ -152,17 +165,20 @@ end
 % ERROR BARS
 % =========================
 
-errY_low  = r_YA - ll_YA;
-errY_high = ul_YA - r_YA;
+errY_low   = r_YA  - ll_YA;
+errY_high  = ul_YA - r_YA;
 
-errO_low  = r_OA - ll_OA;
-errO_high = ul_OA - r_OA;
+errO_low   = r_OA  - ll_OA;
+errO_high  = ul_OA - r_OA;
 
-errD_low  = r_diff - ll_diff;
-errD_high = ul_diff - r_diff;
+errA_low   = r_ALL  - ll_ALL;
+errA_high  = ul_ALL - r_ALL;
+
+errD_low   = r_diff - ll_diff;
+errD_high  = ul_diff - r_diff;
 
 %% =========================
-% FISHER Z TEST FOR DIFFERENCE
+% FISHER Z TEST FOR YA vs OA DIFFERENCE
 % =========================
 
 nY = size(behav_YA,1);
@@ -202,17 +218,18 @@ end
 % COLORS
 % =========================
 
-col_YA_bar = [0.9 0.45 0.45];
-col_OA_bar = [0.45 0.65 0.9];
+col_YA_bar  = [0.9 0.45 0.45];
+col_OA_bar  = [0.45 0.65 0.9];
+col_ALL_bar = [0.65 0.65 0.65];
 
-col_YA_err = [0.75 0.15 0.15];
-col_OA_err = [0.15 0.35 0.75];
-
-col_diff = [0.15 0.15 0.15];
+col_YA_err  = [0.75 0.15 0.15];
+col_OA_err  = [0.15 0.35 0.75];
+col_ALL_err = [0.25 0.25 0.25];
 
 %% =========================
 % PLOT
 % =========================
+
 if plotinfig
   nexttile(4,[1 3])
 else
@@ -222,56 +239,42 @@ else
 end
 hold on
 
-R = [r_YA; r_OA]';
-b = bar(R, 'grouped', 'BarWidth', 0.65);
+R = [r_YA; r_OA; r_ALL]';
+b = bar(R, 'grouped', 'BarWidth', 0.8);
 
-b(1).FaceColor = col_YA_bar;
-b(1).EdgeColor = 'none';
+b(1).FaceColor = col_YA_bar;   b(1).EdgeColor = 'none';
+b(2).FaceColor = col_OA_bar;   b(2).EdgeColor = 'none';
+b(3).FaceColor = col_ALL_bar;  b(3).EdgeColor = 'none';
 
-b(2).FaceColor = col_OA_bar;
-b(2).EdgeColor = 'none';
+xYA  = b(1).XEndPoints;
+xOA  = b(2).XEndPoints;
+xALL = b(3).XEndPoints;
 
-xYA = b(1).XEndPoints;
-xOA = b(2).XEndPoints;
-xDiff = (xYA + xOA) / 2;
+% error bars
+errorbar(xYA,  r_YA,  errY_low, errY_high, ...
+    'Color', col_YA_err, 'LineStyle', 'none', 'LineWidth', 1.0, 'CapSize', 6);
 
-%% Error bars for YA/OA
-errorbar(xYA, r_YA, errY_low, errY_high, ...
-    'Color', col_YA_err, ...
-    'LineStyle', 'none', ...
-    'LineWidth', 1.0, ...
-    'CapSize', 6)
+errorbar(xOA,  r_OA,  errO_low, errO_high, ...
+    'Color', col_OA_err, 'LineStyle', 'none', 'LineWidth', 1.0, 'CapSize', 6);
 
-errorbar(xOA, r_OA, errO_low, errO_high, ...
-    'Color', col_OA_err, ...
-    'LineStyle', 'none', ...
-    'LineWidth', 1.0, ...
-    'CapSize', 6)
-
-% %% Difference points
-% errorbar(xDiff, r_diff, errD_low, errD_high, ...
-%     'o', ...
-%     'Color', col_diff, ...
-%     'MarkerFaceColor', col_diff, ...
-%     'MarkerEdgeColor', 'w', ...
-%     'MarkerSize', 7, ...
-%     'LineWidth', 1, ...
-%     'CapSize', 6)
+errorbar(xALL, r_ALL, errA_low, errA_high, ...
+    'Color', col_ALL_err, 'LineStyle', 'none', 'LineWidth', 1.0, 'CapSize', 6);
 
 %% Optional text above bars
 yl = [-1 1.1];
 y_domain = yl(2) + 0.06;
 
-for i = 1:nBehav
-    text(i, y_domain, domain_labels{i}, ...
+for i = 1:min(3,numel(regime_labels))
+    text(i, y_domain, regime_labels{i}, ...
         'HorizontalAlignment', 'center', ...
         'FontSize', 9)
 end
 
-%% Significance markers
+%% Significance markers for YA vs OA difference
 for i = 1:nBehav
     if sig_labels(i) ~= ""
-        text(xDiff(i), r_OA(i) + 0.05, sig_labels(i), ...
+        ysig = max([r_YA(i)+errY_high(i), r_OA(i)+errO_high(i), r_ALL(i)+errA_high(i)]) + 0.05;
+        text(mean([xYA(i) xOA(i)]), ysig, sig_labels(i), ...
             'HorizontalAlignment', 'center', ...
             'FontSize', 11, ...
             'FontWeight', 'bold')
@@ -285,11 +288,11 @@ ylim(yl)
 xlim([0.5 nBehav + 0.5])
 
 xticks(1:nBehav)
-xticklabels(pretty_labels)
-% xtickangle(35)
-
-% ylabel(sprintf('%s''s (r) and ∆ r', corrtype))
+xticklabels(domain_labels(2:end))
 ylabel(sprintf('%s''s r', corrtype))
+
+legend({'Young','Older','All'}, 'Location', 'best')
+legend boxoff
 
 box off
 set(gca, 'FontSize', 9)

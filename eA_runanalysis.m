@@ -33,9 +33,21 @@ runPLSanalyses
 %% plot YA vs OA taskPLS and time courses blink data
 plot_taskPLS_YAvsOA 
 
-%% plot behavior pls blink data
+%% compute cog domain and cog regime scores
+compute_behav_domain_regime
 
-plot_PLSCblinkresults % behav PLS
-plot_PLSCcorr_blink % corr bar plots
+%% plot mean ctr PLS and correlations with flex axis
+plot_taskPLS_YAvsOA
 plotBS_taskPLSvsRawbehavior % task PLS BS vs behavior
+outfile = sprintf('taskPLS_corrtobehav');
+exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), 'ContentType', 'vector', 'BackgroundColor','white')
+exportgraphics(gcf, fullfile(plotfolder, [outfile '.png']), 'ContentType', 'vector', 'BackgroundColor','white')
 
+%% plot behavior pls blink data
+for LVsel = 1:3
+  plot_PLSCblinkresults % behav PLS
+  plot_PLSCcorr_blink % corr bar plots
+  outfile = sprintf('LV%d_BehavPLS', LVsel);
+  exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), 'ContentType', 'vector', 'BackgroundColor','white')
+  exportgraphics(gcf, fullfile(plotfolder, [outfile '.png']), 'ContentType', 'vector', 'BackgroundColor','white')
+end

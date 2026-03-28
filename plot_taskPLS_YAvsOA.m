@@ -20,8 +20,17 @@ cfg.colormap = cmap;
 cfg.ylabel = 'Time scale (ms)';
 
 ft_clusterplot3D(cfg, stat_mse_2group_task)
+axis tight
 
-%% export and save
+cb = findobj(gcf, 'Type', 'ColorBar');
+cbtopo = cb(1);
+cbtopo.Limits = [-475 475];
+cbtopo.Position = [0.60    0.55    0.0132    0.1];
+cbtfr = cb(2);
+cbtfr.Limits = [-50 50];
+cbtfr.Position = [0.36    0.7   0.0132    0.1];
+
+% export and save
 fig.Units = 'centimeters';
 fig.Position(3:4) = [13 8];   % figure size: 12 × 8 cm
 
@@ -29,30 +38,30 @@ fig.PaperUnits = 'centimeters';
 fig.PaperSize = [13 8];
 fig.PaperPosition = [0 0 13 8];
 
-exportgraphics(fig,fullfile(plotfolder, 'taskPLS_YAvsOA.pdf'),'ContentType','vector')
+% exportgraphics(fig,fullfile(plotfolder, 'taskPLS_YAvsOA.pdf'),'ContentType','vector')
 
 %% plot mMSE time courses
-close all
-cfg=[];
-cfg.frequency = [40 100];
-cfg.avgoverfreq = 'yes';
-young_mse_all_slow = ft_selectdata(cfg, young_mse_all);
-old_mse_all_slow = ft_selectdata(cfg, old_mse_all);
-
-cfg=[];
-cfg.frequency = 20;
-young_mse_all_fast = ft_selectdata(cfg, young_mse_all);
-old_mse_all_fast = ft_selectdata(cfg, old_mse_all);
-old_mse_all_fast.freq = 70;
-young_mse_all_fast.freq = 70;
-
-cfg=[];
-cfg.layout = 'EEG1010.lay';
-cfg.interactive = 'yes';
-cfg.xlim = [-1 1];
-% cfg.ylim = [1 1.25];
-ft_multiplotER(cfg, old_mse_all_slow, old_mse_all_fast, young_mse_all_slow, young_mse_all_fast)
-% ft_multiplotER(cfg, old_mse_all_fast, young_mse_all_fast)
+% % close all
+% cfg=[];
+% cfg.frequency = [40 100];
+% cfg.avgoverfreq = 'yes';
+% young_mse_all_slow = ft_selectdata(cfg, young_mse_all);
+% old_mse_all_slow = ft_selectdata(cfg, old_mse_all);
+% 
+% cfg=[];
+% cfg.frequency = 20;
+% young_mse_all_fast = ft_selectdata(cfg, young_mse_all);
+% old_mse_all_fast = ft_selectdata(cfg, old_mse_all);
+% old_mse_all_fast.freq = 70;
+% young_mse_all_fast.freq = 70;
+% 
+% cfg=[];
+% cfg.layout = 'EEG1010.lay';
+% cfg.interactive = 'yes';
+% cfg.xlim = [-1 1];
+% % cfg.ylim = [1 1.25];
+% ft_multiplotER(cfg, old_mse_all_slow, old_mse_all_fast, young_mse_all_slow, young_mse_all_fast)
+% % ft_multiplotER(cfg, old_mse_all_fast, young_mse_all_fast)
 
 %% plot posterior 20 ms, anterior 40-100 ms mse by hand
 anterior = {'Fp1','Fp2','AF7','AF3','AFz','AF4','AF8', ...
@@ -110,9 +119,10 @@ sem_old_slow_ant    = std(dat_old_slow_ant, 0, 1) ./ sqrt(size(dat_old_slow_ant,
 sem_young_fast_post = std(dat_young_fast_post, 0, 1) ./ sqrt(size(dat_young_fast_post, 1));
 sem_young_slow_ant  = std(dat_young_slow_ant, 0, 1) ./ sqrt(size(dat_young_slow_ant, 1));
 
-f=figure;
-f.Position = [    1     1   438   282]
-     
+% f=figure;
+% f.Position = [    1     1   438   282]
+
+nexttile
 hold on
 
 % Colors (Old = blue, Young = red)
@@ -137,26 +147,27 @@ fill([time fliplr(time)], ...
      c_young, 'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off');
 
 % Mean lines
-h1 = plot(time, m_old_fast_post,   '--', 'Color', c_old,   'LineWidth', 2); % dashed
-h2 = plot(time, m_old_slow_ant,    '-',  'Color', c_old,   'LineWidth', 2);
+h1 = plot(time, m_old_fast_post,   '--', 'Color', c_old,   'LineWidth', 1); % dashed
+h2 = plot(time, m_old_slow_ant,    '-',  'Color', c_old,   'LineWidth', 1);
 
-h3 = plot(time, m_young_fast_post, '--', 'Color', c_young, 'LineWidth', 2); % dashed
-h4 = plot(time, m_young_slow_ant,  '-',  'Color', c_young, 'LineWidth', 2);
+h3 = plot(time, m_young_fast_post, '--', 'Color', c_young, 'LineWidth', 1); % dashed
+h4 = plot(time, m_young_slow_ant,  '-',  'Color', c_young, 'LineWidth', 1);
 
-xlim([-1 1])
-xline(0)
+% xlim([-1 1])
+xline(0, 'k')
 xlabel('Time (s)')
 ylabel('Sample entropy')
 
-l = legend([h1 h2 h3 h4], ...
-       {'Older fast post.','Older slow ant.', ...
-        'Young fast post.','Young slow ant.'}, ...
-       'Location','best');
-l.Position = [   0.5708    0.7980    0.3311    0.2181];
+% l = legend([h1 h2 h3 h4], ...
+%        {'Older fast post.','Older slow ant.', ...
+%         'Young fast post.','Young slow ant.'}, ...
+%        'Location','best');
+% l.Position = [   0.5708    0.7980    0.3311    0.2181];
 box off
 %% Export
 % exportgraphics(gcf,'brain_behavior_age_differences.pdf','ContentType','vector')
 set(gcf,'Units','centimeters')
-set(gcf,'Position',[5 5 10 7])   % [x y width height]
+set(gcf,'Position',[5 5 13 8])   % [x y width height]
 
-exportgraphics(gcf,fullfile(plotfolder, 'MSEtimecourses.pdf'),'ContentType','vector')
+% exportgraphics(gcf,fullfile(plotfolder, 'taskPLS_corrbehavior.pdf'),'ContentType','vector')
+% exportgraphics(gcf,fullfile(plotfolder, 'taskPLS_corrbehavior.png'),'ContentType','vector')
