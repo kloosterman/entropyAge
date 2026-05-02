@@ -2,172 +2,130 @@
 %% plot 
 close all
 
-load colormap_jetlightgray.mat
+% load colormap_jetlightgray.mat
+cmap = cbrewer('div','RdBu',256);
+cmap = flipud(cmap);
 
 fig=figure;
-tiledlayout(2,3)
-fig.Position = [451   695   607   254];
+tiledlayout(2,4,'TileSpacing','compact','Padding','compact')
+fig.Position = [451   695   800   254];
 
-cfg=[];
+cfg = [];
 cfg.layout = 'EEG1010.lay';
 cfg.clus2plot = 1;
 cfg.clussign = 'pos';
-cfg.integratetype = 'trapz'; % mean or trapz
-cfg.subplotsize = [2 4]; % 2 rows, 2 topo/TFR couples
-cfg.subplotind = [1 2];
+cfg.integratetype = 'mean';
 cfg.parameter = 'stat';
 cfg.colormap = cmap;
-cfg.ylabel = 'Time scale (ms)';
+cfg.subplotind = [1 2 3];
+cfg.topo_usemask = 'no';
+% cfg.TFRspan = [1 2];        % TFR spans 2 tiles
+
+cfg.topo_windows(1).timerange = [-0.8 0.4];
+cfg.topo_windows(1).scalerange = [0 20];
+cfg.topo_windows(1).title = 'Fast scales';
+
+cfg.topo_windows(2).timerange = [-0.8 0.4];
+cfg.topo_windows(2).scalerange = [60 100];
+cfg.topo_windows(2).title = 'Slow scales';
 
 ft_clusterplot3D(cfg, stat_mse_2group_task)
-axis tight
+nexttile(2); axis tight; set(findall(gcf,'-property','LineWidth'),'LineWidth',0.5)
+nexttile(3); axis tight; set(findall(gcf,'-property','LineWidth'),'LineWidth',0.5)
 
-cb = findobj(gcf, 'Type', 'ColorBar');
-cbtopo = cb(1);
-cbtopo.Limits = [-475 475];
-cbtopo.Position = [0.60    0.55    0.0132    0.1];
-cbtfr = cb(2);
-cbtfr.Limits = [-50 50];
-cbtfr.Position = [0.36    0.7   0.0132    0.1];
 
-% export and save
-fig.Units = 'centimeters';
-fig.Position(3:4) = [13 8];   % figure size: 12 × 8 cm
+%%
+stat = stat_mse_2group_task;
 
-fig.PaperUnits = 'centimeters';
-fig.PaperSize = [13 8];
-fig.PaperPosition = [0 0 13 8];
+cfg_tc = [];
+cfg_tc.layout = 'EEG1010.lay';
+cfg_tc.mask = stat.posclusterslabelmat;                    % chan x freq x time
+cfg_tc.freqrange = [20 20];
+cfg_tc.timerange = [-1.25 1.25];
+cfg_tc.weighting = 'cluster';
+cfg_tc.splitmode = 'medianY';
 
-% exportgraphics(fig,fullfile(plotfolder, 'taskPLS_YAvsOA.pdf'),'ContentType','vector')
+out20 = extract_ant_post_timecourses(cfg_tc, stat, young_mse_all.powspctrm, old_mse_all.powspctrm);
+cfg_tc.freqrange = [40 100];
+out60 = extract_ant_post_timecourses(cfg_tc, stat, young_mse_all.powspctrm, old_mse_all.powspctrm);
 
-%% plot mMSE time courses
-% % close all
-% cfg=[];
-% cfg.frequency = [40 100];
-% cfg.avgoverfreq = 'yes';
-% young_mse_all_slow = ft_selectdata(cfg, young_mse_all);
-% old_mse_all_slow = ft_selectdata(cfg, old_mse_all);
-% 
-% cfg=[];
-% cfg.frequency = 20;
-% young_mse_all_fast = ft_selectdata(cfg, young_mse_all);
-% old_mse_all_fast = ft_selectdata(cfg, old_mse_all);
-% old_mse_all_fast.freq = 70;
-% young_mse_all_fast.freq = 70;
-% 
-% cfg=[];
-% cfg.layout = 'EEG1010.lay';
-% cfg.interactive = 'yes';
-% cfg.xlim = [-1 1];
-% % cfg.ylim = [1 1.25];
-% ft_multiplotER(cfg, old_mse_all_slow, old_mse_all_fast, young_mse_all_slow, young_mse_all_fast)
-% % ft_multiplotER(cfg, old_mse_all_fast, young_mse_all_fast)
+% figure; hold on
+nexttile(4); hold on; axis tight;
 
-%% plot posterior 20 ms, anterior 40-100 ms mse by hand
-anterior = {'Fp1','Fp2','AF7','AF3','AFz','AF4','AF8', ...
-            'F7','F5','F3','F1','Fz','F2','F4','F6','F8', ...
-            'FT7','FC5','FC3','FC1','FCz','FC2','FC4','FC6','FT8', ...
-            'T7','C5','C3','C1','Cz','C2','C4','C6','T8'};
+% Colors
+% col_YA = [1 0 0]; % red
+% col_OA = [0 0 1]; % blue
+col_YA = [0.85 0.2 0.2];   % slightly softer red
+col_OA = [0.2 0.4 0.8];    % nicer blue (less saturated than [0 0 1])
 
-posterior = {'TP7','CP5','CP3','CP1','CPz','CP2','CP4','CP6','TP8', ...
-             'P7','P5','P3','P1','Pz','P2','P4','P6','P8', ...
-             'PO7','PO3','POz','PO4','PO8','O1','Oz','O2'};
+% --- Compute means and SEM ---
+% YA anterior (60)
+m_YA_ant = mean(out60.ant.YA,1);
+sem_YA_ant = std(out60.ant.YA,[],1) ./ sqrt(size(out60.ant.YA,1));
 
-cfg = [];
-cfg.channel = posterior;
-cfg.avgoverchan = 'yes';
-cfg.frequency = 20;
-old_fast_post = ft_selectdata(cfg, old_mse_all);
+% YA posterior (20)
+m_YA_post = mean(out20.post.YA,1);
+sem_YA_post = std(out20.post.YA,[],1) ./ sqrt(size(out20.post.YA,1));
 
-cfg = [];
-cfg.channel = anterior;
-cfg.avgoverchan = 'yes';
-cfg.frequency = [40 100];
-cfg.avgoverfreq = 'yes';
-old_slow_ant = ft_selectdata(cfg, old_mse_all);
+% OA anterior (60)
+m_OA_ant = mean(out60.ant.OA,1);
+sem_OA_ant = std(out60.ant.OA,[],1) ./ sqrt(size(out60.ant.OA,1));
 
-cfg = [];
-cfg.channel = posterior;
-cfg.avgoverchan = 'yes';
-cfg.frequency = 20;
-young_fast_post = ft_selectdata(cfg, young_mse_all);
+% OA posterior (20)
+m_OA_post = mean(out20.post.OA,1);
+sem_OA_post = std(out20.post.OA,[],1) ./ sqrt(size(out20.post.OA,1));
 
-cfg = [];
-cfg.channel = anterior;
-cfg.avgoverchan = 'yes';
-cfg.frequency = [40 100];
-cfg.avgoverfreq = 'yes';
-young_slow_ant = ft_selectdata(cfg, young_mse_all);
+t = stat.time;
 
-% subject x time
-dat_old_fast_post   = squeeze(old_fast_post.powspctrm);
-dat_old_slow_ant    = squeeze(old_slow_ant.powspctrm);
-dat_young_fast_post = squeeze(young_fast_post.powspctrm);
-dat_young_slow_ant  = squeeze(young_slow_ant.powspctrm);
+% --- Helper for shaded error ---
+plot_shaded = @(x, m, sem, col, ls) ...
+    fill([x fliplr(x)], [m-sem fliplr(m+sem)], col, ...
+    'FaceAlpha', 0.2, 'EdgeColor', 'none');
 
-time = young_slow_ant.time;
+% --- Plot shaded areas ---
+% --- Plot shaded areas (HIDE from legend) ---
+h1 = plot_shaded(t, m_YA_ant, sem_YA_ant, col_YA);
+h2 = plot_shaded(t, m_YA_post, sem_YA_post, col_YA);
+h3 = plot_shaded(t, m_OA_ant, sem_OA_ant, col_OA);
+h4 = plot_shaded(t, m_OA_post, sem_OA_post, col_OA);
 
-% means
-m_old_fast_post   = mean(dat_old_fast_post, 1);
-m_old_slow_ant    = mean(dat_old_slow_ant, 1);
-m_young_fast_post = mean(dat_young_fast_post, 1);
-m_young_slow_ant  = mean(dat_young_slow_ant, 1);
+set([h1 h2 h3 h4], 'HandleVisibility', 'off');
+% --- Plot lines on top ---
+hYA_ant = plot(t, m_YA_ant, '-',  'Color', col_YA, 'LineWidth', 1.5);
+hYA_post = plot(t, m_YA_post, ':', 'Color', col_YA, 'LineWidth', 1.5);
 
-% SEM
-sem_old_fast_post   = std(dat_old_fast_post, 0, 1) ./ sqrt(size(dat_old_fast_post, 1));
-sem_old_slow_ant    = std(dat_old_slow_ant, 0, 1) ./ sqrt(size(dat_old_slow_ant, 1));
-sem_young_fast_post = std(dat_young_fast_post, 0, 1) ./ sqrt(size(dat_young_fast_post, 1));
-sem_young_slow_ant  = std(dat_young_slow_ant, 0, 1) ./ sqrt(size(dat_young_slow_ant, 1));
+hOA_ant = plot(t, m_OA_ant, '-',  'Color', col_OA, 'LineWidth', 1.5);
+hOA_post = plot(t, m_OA_post, ':', 'Color', col_OA, 'LineWidth', 1.5);
 
-% f=figure;
-% f.Position = [    1     1   438   282]
-
-nexttile
-hold on
-
-% Colors (Old = blue, Young = red)
-c_old   = [0.0 0.3 0.8];
-c_young = [0.8 0.1 0.1];
-
-% Shaded error bands
-fill([time fliplr(time)], ...
-     [m_old_fast_post + sem_old_fast_post, fliplr(m_old_fast_post - sem_old_fast_post)], ...
-     c_old, 'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off');
-
-fill([time fliplr(time)], ...
-     [m_old_slow_ant + sem_old_slow_ant, fliplr(m_old_slow_ant - sem_old_slow_ant)], ...
-     c_old, 'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off');
-
-fill([time fliplr(time)], ...
-     [m_young_fast_post + sem_young_fast_post, fliplr(m_young_fast_post - sem_young_fast_post)], ...
-     c_young, 'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off');
-
-fill([time fliplr(time)], ...
-     [m_young_slow_ant + sem_young_slow_ant, fliplr(m_young_slow_ant - sem_young_slow_ant)], ...
-     c_young, 'FaceAlpha', 0.2, 'EdgeColor', 'none', 'HandleVisibility', 'off');
-
-% Mean lines
-h1 = plot(time, m_old_fast_post,   '--', 'Color', c_old,   'LineWidth', 1); % dashed
-h2 = plot(time, m_old_slow_ant,    '-',  'Color', c_old,   'LineWidth', 1);
-
-h3 = plot(time, m_young_fast_post, '--', 'Color', c_young, 'LineWidth', 1); % dashed
-h4 = plot(time, m_young_slow_ant,  '-',  'Color', c_young, 'LineWidth', 1);
-
-% xlim([-1 1])
-xline(0, 'k')
+% --- Decorations ---
+xline(0,'k:')
+ax2 = nexttile(8);
+axis off  % hide axes
+lgd = legend(ax2, [hYA_ant hYA_post hOA_ant hOA_post], ...
+       {'YA ant60','YA post20','OA ant60','OA post20'}, ...
+       'Location','southoutside', ...
+       'Orientation','vertical');
+lgd.Position =  [  0.7603    0.3047    0.1974    0.1595];
+legend boxoff
 xlabel('Time (s)')
-ylabel('Sample entropy')
+ylabel('Entropy')
+box on
 
-% l = legend([h1 h2 h3 h4], ...
-%        {'Older fast post.','Older slow ant.', ...
-%         'Young fast post.','Young slow ant.'}, ...
-%        'Location','best');
-% l.Position = [   0.5708    0.7980    0.3311    0.2181];
-box off
 %% Export
 % exportgraphics(gcf,'brain_behavior_age_differences.pdf','ContentType','vector')
 set(gcf,'Units','centimeters')
-set(gcf,'Position',[5 5 13 8])   % [x y width height]
+set(gcf,'Position',[5 5 13 7])   % [x y width height]
+
+% export and save
+fig.Units = 'centimeters';
+fig.Position(3:4) = [13 7];   % figure size: 12 × 8 cm
+
+fig.PaperUnits = 'centimeters';
+fig.PaperSize = [13 7];
+fig.PaperPosition = [0 0 13 7];
+
+% exportgraphics(fig,fullfile(plotfolder, 'taskPLS_YAvsOA.pdf'),'ContentType','vector')
 
 % exportgraphics(gcf,fullfile(plotfolder, 'taskPLS_corrbehavior.pdf'),'ContentType','vector')
 % exportgraphics(gcf,fullfile(plotfolder, 'taskPLS_corrbehavior.png'),'ContentType','vector')
+

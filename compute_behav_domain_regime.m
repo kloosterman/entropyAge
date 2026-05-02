@@ -9,7 +9,8 @@ OA_tbl = readtable(fullfile(behavfolder, 'MA_Probanden_Neuropsychologie.xlsx'), 
 %% Turn behavior matrix into table
 load behav.mat
 
-% todo: WM → Fluid → VLMT Learning → Attention → VLMT Interference → VLMT Delayed → Crystallized
+% todo also load excel: get age
+
 varNames = { ...
     'd2', ...
     'VLMT_1_5', ...
@@ -75,7 +76,12 @@ domain_tbl = behav_tbl(:, { ...
 %% Convert to matrix for PLS / PCA
 
 behav_domains = table2array(domain_tbl(:,2:end));
-domain_labels = domain_tbl.Properties.VariableNames;
+
+% Reorder domains: Fluid, WM, L&M, Attention, Crystallized
+ord = [2 1 3 4 5];
+behav_domains = behav_domains(:,ord);
+
+domain_labels = {'FluidIntelligence','WorkingMemory','LearningMemory','Attention','Crystallized'};
 
 %% Optional: regimes (based on ordered domains)
 
@@ -83,8 +89,8 @@ domain_labels = domain_tbl.Properties.VariableNames;
 Z = zscore(behav_domains);
 
 % Column order now:
-% 1 WM
-% 2 Fluid
+% 1 Fluid
+% 2 WorkingMemory
 % 3 LearningMemory
 % 4 Attention
 % 5 Crystallized
@@ -94,6 +100,8 @@ Balanced = mean(Z(:,[3 4]), 2, 'omitnan');
 Stable   = Z(:,5);
 
 regime_tbl = table(Flexible, Balanced, Stable);
+% Regime labels
+regime_labels = {'Flexible','Balanced','Stable'};
 
 %% bar plots YA vs OA for 5 ordered z-scored domains
 % Order:
@@ -108,10 +116,13 @@ regime_tbl = table(Flexible, Balanced, Stable);
 
 % Put z-scored domains into table
 domain_z_tbl = array2table(Z, 'VariableNames', ...
-    {'WorkingMemory','FluidIntelligence','LearningMemory','Attention','Crystallized'});
+    {'FluidIntelligence','WorkingMemory','LearningMemory','Attention','Crystallized'});
 domain_z_tbl.AgeGroup = domain_tbl.AgeGroup;
 
 %% Remove outliers (IQR method) within each domain and group
+
+domainNames = {'FluidIntelligence','WorkingMemory','LearningMemory','Attention','Crystallized'};
+domainLabels = {'Fluid Intelligence','Working Memory','Learning & Memory','Attention','Crystallized'};
 
 clean_tbl = domain_z_tbl;
 
@@ -140,9 +151,6 @@ end
 
 isYoung = domain_z_tbl.AgeGroup == 'Young';
 isOld   = domain_z_tbl.AgeGroup == 'Older';
-
-domainNames = {'WorkingMemory','FluidIntelligence','LearningMemory','Attention','Crystallized'};
-domainLabels = {'Working Memory','Fluid Intelligence','Learning & Memory','Attention','Crystallized'};
 
 % Preallocate
 meanY = zeros(1,5);
@@ -188,24 +196,33 @@ bar(x - width/2, meanY, width, ...
 bar(x + width/2, meanO, width, ...
     'FaceColor', col_O, 'EdgeColor', 'none', 'FaceAlpha', 0.6);
 
-% Error bars
-errorbar(x - width/2, meanY, semY, 'k', 'linestyle', 'none', 'LineWidth', 1);
-errorbar(x + width/2, meanO, semO, 'k', 'linestyle', 'none', 'LineWidth', 1);
 
-% Scatter points
+jitter = 0.08; % adjust strength (0.05–0.15 works well)
+
 for i = 1:5
-  scatter(repmat(x(i)-width/2, sum(isYoung), 1), ...
+    
+  % Young
+  x_jit_Y = (x(i)-width/2) + (rand(sum(isYoung),1)-0.5)*2*jitter;
+  scatter(x_jit_Y, ...
     domain_z_tbl{isYoung, domainNames{i}}, ...
-    10, col_Y, 'filled', ...
-    'MarkerFaceAlpha', 0.4, ...  'MarkerEdgeColor', 'w', ...
-    'LineWidth', 0.5);
+    7, col_Y, 'filled', ...
+    'MarkerFaceAlpha', 0.4, ...
+    'MarkerEdgeColor', 'w', ...
+    'LineWidth', 0.25);
 
-  scatter(repmat(x(i)+width/2, sum(isOld), 1), ...
+  % Old
+  x_jit_O = (x(i)+width/2) + (rand(sum(isOld),1)-0.5)*2*jitter;
+  scatter(x_jit_O, ...
     domain_z_tbl{isOld, domainNames{i}}, ...
-    10, col_O, 'filled', ...
-    'MarkerFaceAlpha', 0.4, ...     'MarkerEdgeColor', 'w', ...
-    'LineWidth', 0.5);
+    7, col_O, 'filled', ...
+    'MarkerFaceAlpha', 0.4, ...
+    'MarkerEdgeColor', 'w', ...
+    'LineWidth', 0.25);
 end
+
+% Error bars
+errorbar(x - width/2, meanY, semY, 'k', 'linestyle', 'none', 'LineWidth', 0.5);
+errorbar(x + width/2, meanO, semO, 'k', 'linestyle', 'none', 'LineWidth', 0.5);
 
 %% Significance markers
 ymax_each = max([meanY + semY; meanO + semO], [], 1);
@@ -218,7 +235,8 @@ end
 offset = 0.08 * yRange;
 
 for i = 1:5
-    y = ymax_each(i) + offset;
+    % y = ymax_each(i) + offset;
+    y = 2;
     
     if p_fdr(i) < 0.001
       stars = '***';
@@ -239,16 +257,25 @@ end
 xline(2.5, '-', 'Color', [0.7 0.7 0.7], 'LineWidth', 1.5);
 xline(4.5, '-', 'Color', [0.7 0.7 0.7], 'LineWidth', 1.5);
 
-%% Regime labels
-yl = ylim;
-text(1.5, yl(2) + 0.06*range(yl), 'Flexible', ...
-    'HorizontalAlignment', 'center', 'FontWeight', 'bold');
-text(3.5, yl(2) + 0.06*range(yl), 'Balanced', ...
-    'HorizontalAlignment', 'center', 'FontWeight', 'bold');
-text(5.0, yl(2) + 0.06*range(yl), 'Stable', ...
-    'HorizontalAlignment', 'center', 'FontWeight', 'bold');
 
-ylim([yl(1), yl(2) + 0.12*range(yl)])
+%% Regime labels (clean version)
+yl = ylim;
+yr = range(yl);
+
+regime_centers = [1.5, 3.5, 5];
+
+% y_text = yl(1) - 0.08*yr;   % position just below x-axis
+y_text = -2.6;
+
+for i = 1:3
+    text(regime_centers(i), y_text, regime_labels{i}, ...
+        'HorizontalAlignment', 'center', ...
+        'FontWeight', 'bold', ...
+        'FontSize', 7.5);
+end
+
+% Extend lower limit to make space
+ylim([yl(1) - 0.15*yr, yl(2)])
 
 %% Formatting
 xticks(x)
@@ -256,16 +283,61 @@ xticklabels(domainLabels)
 xtickangle(25)
 xlabel('Cognitive Domains')
 ylabel('Domain score (z)')
-legend({'Young','Older'}, 'Location', 'best')
+
+lgd = legend({'Young','Older'}, 'Location','best');
+% Control size of colored legend entries
+lgd.ItemTokenSize = [10 10];   % [length height]
+lgd.Position =  [  0.4766    0.8561     0.1599    0.0925];
+
 legend boxoff
+
 box off
 set(gca, 'FontSize', 10)
 ax=gca;
 ax.XLim = [0.5 5.5];
 ax.YLim = [-3 3];
 ax.FontSize = 8;
-
+ax.TickDir = 'out';
 exportgraphics(gcf, fullfile(plotfolder,'domains_1col.pdf'), ...
     'ContentType','vector', 'BackgroundColor','white');
 exportgraphics(gcf, fullfile(plotfolder,'domains_1col.png'), ...
-    'ContentType','vector', 'BackgroundColor','white');
+     'BackgroundColor','white', 'Resolution', 600);
+
+
+%%
+% =========================
+% SETTINGS
+% =========================
+corrtype = 'Spearman'; % 'Pearson' or 'Spearman'
+
+% Extract only domain data (exclude AgeGroup)
+X = table2array(domain_z_tbl(:,1:5));
+labels = domain_z_tbl.Properties.VariableNames(1:5);
+
+% =========================
+% CORRELATION
+% =========================
+[R, P] = corr(X, 'Type', corrtype, 'Rows', 'pairwise');
+
+% =========================
+% PLOT
+% =========================
+figure;
+imagesc(R)
+axis square
+
+% Color limits centered at 0
+caxis([-1 1])
+
+colormap(cmap) % or your custom map
+
+colorbar
+
+% Axis labels
+xticks(1:5)
+yticks(1:5)
+xticklabels(labels)
+yticklabels(labels)
+xtickangle(45)
+
+title('Correlation matrix (domains)')

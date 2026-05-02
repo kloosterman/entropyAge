@@ -30,24 +30,62 @@ eA_preproc_setup() % done by Moritz
 
 runPLSanalyses
 
+%% plotting scripts below
+% The big figure with behavior, task PLS brain scores, gradient and example
+% scatters
+compute_behav_domain_regime % plot behav bar plot
+plot_behav_PLS_grad_scat % plot task PLS bar + topo
+
+%% better: behavior bars, task pls, gradient plot: stable to flexible
+close all
+figure('Units','centimeters','Position',[5 5 8.5 13]);
+tiledlayout(3,6,"TileSpacing","compact","Padding","tight")
+
+% stat_mse_2group_task = stat_mse_2group_task_noOAoutlier;
+stat_mse_2group_task = stat_mse_2group_task_all; % include all
+
+plot_behav_bars % panel A
+plot_taskPLS_slim
+% plot_flexgradient_BSvsCog
+plotWhat = 'regimes';
+plotBS_taskPLSvsRawbehavior
+
+outfile = sprintf('behav_taskPLS_corrGradient');
+set(gcf, 'Color', 'w')                    % figure background
+set(findall(gcf, 'tygcpe', 'axes'), 'Color', 'w')  % all axes
+exportFigure(gcf, fullfile(plotfolder, [outfile '.pdf']), 'Resolution', 600, 'FontName', 'Arial', 'FontSize', 8)
+exportFigure(gcf, fullfile(plotfolder, [outfile '.png']), 'Resolution', 600, 'FontName', 'Arial', 'FontSize', 8)
+
+%% plot taskBS vs behavior per domain
+% close all
+plotWhat = 'domains';
+% plotWhat = 'regimes';
+figure
+plotBS_taskPLSvsRawbehavior
+
+
 %% plot YA vs OA taskPLS and time courses blink data
 plot_taskPLS_YAvsOA 
 
 %% compute cog domain and cog regime scores
 compute_behav_domain_regime
 
+
 %% plot mean ctr PLS and correlations with flex axis
 plot_taskPLS_YAvsOA
 plotBS_taskPLSvsRawbehavior % task PLS BS vs behavior
 outfile = sprintf('taskPLS_corrtobehav');
-exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), 'ContentType', 'vector', 'BackgroundColor','white')
-exportgraphics(gcf, fullfile(plotfolder, [outfile '.png']), 'ContentType', 'vector', 'BackgroundColor','white')
+set(gcf, 'Color', 'w')                    % figure background
+set(findall(gcf, 'tygcpe', 'axes'), 'Color', 'w')  % all axes
+exportFigure(gcf, fullfile(plotfolder, [outfile '.pdf']), 'Resolution', 600, 'FontName', 'Arial', 'FontSize', 8)
+exportFigure(gcf, fullfile(plotfolder, [outfile '.png']), 'Resolution', 600, 'FontName', 'Arial', 'FontSize', 8)
+% exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), 'ContentType', 'vector', 'BackgroundColor','white')
+% exportgraphics(gcf, fullfile(plotfolder, [outfile '.png']), 'ContentType', 'vector', 'BackgroundColor','white')
 
 %% plot behavior pls blink data
-for LVsel = 1:3
+for LVsel = 1:3 %1:4
+  close all
   plot_PLSCblinkresults % behav PLS
   plot_PLSCcorr_blink % corr bar plots
-  outfile = sprintf('LV%d_BehavPLS', LVsel);
-  exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), 'ContentType', 'vector', 'BackgroundColor','white')
-  exportgraphics(gcf, fullfile(plotfolder, [outfile '.png']), 'ContentType', 'vector', 'BackgroundColor','white')
 end
+

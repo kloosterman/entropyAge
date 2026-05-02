@@ -1,88 +1,123 @@
 %% plot correlations task PLS brainscores with raw behavior
 % Figure
-if not(plotinfig)
-  f = figure;
-  tiledlayout(3,3,'TileSpacing','compact','Padding','compact');
+if ~plotinfig
+    f = figure;
+
+    % auto layout depending on number of panels
+    plotWhat = 'domains';   % 'regimes' or 'domains'
+
+    if strcmpi(plotWhat,'regimes')
+        tiledlayout(3,3,'TileSpacing','compact','Padding','compact');
+    else
+        tiledlayout(3,4,'TileSpacing','compact','Padding','compact');
+    end
 end
 
 % =========================
 % SETTINGS
 % =========================
 useBinnedAll = 0;        % plot binned across-subject average
-nBins        = 5;        % e.g. 5 or 7 bins
-showRawPts   = true;     % keep YA/OA scatter
-showBinErr   = true;     % error bars for binned means
-minPerBin    = 3;        % require at least this many subjects per bin
+nBins        = 5;
+showRawPts   = true;
+showBinErr   = true;
+minPerBin    = 3;
+corrtype     = 'Pearson';
+
+% -----------------------------------------
+% SUBJECT EXCLUSION: define once
+% indices are within group
+% -----------------------------------------
+ya_excl = [];    % e.g. [3 8]
+oa_excl = 5;     % e.g. [7]
 
 % Data
 Y_BStask = stat_mse_2group_task.brainscores{1}(:,1);
 O_BStask = stat_mse_2group_task.brainscores{2}(:,1);
+
+nYA_full = length(Y_BStask);
+nOA_full = length(O_BStask);
+
+% =========================
+% CHOOSE WHAT TO PLOT
+% =========================
+switch lower(plotWhat)
+    case 'regimes'
+        behavdat_full = table2array(regime_tbl);
+        plot_labels = regime_tbl.Properties.VariableNames;
+        behavoi = 1:size(behavdat_full,2);
+        behavoi = fliplr(behavoi); % start with stable
+
+        % tile positions for 3-panel layout
+        tile_idx = 7:2:11;
+
+    case 'domains'
+        domainNames = {'Crystallized','Attention','LearningMemory','WorkingMemory','FluidIntelligence'};
+        plot_labels = {'Crystallized','Attention','Learning & Memory','Working Memory','Fluid Intelligence'};
+        behavdat_full = table2array(clean_tbl(:, domainNames));
+        behavoi = 1:numel(domainNames);
+
+        % tile positions for 5-panel layout in 3x4 grid
+        tile_idx = [5 6 7 8 10];
+end
+
+% =========================
+% APPLY SAME EXCLUSION TO BRAIN + BEHAVIOR
+% =========================
+keepYA = true(nYA_full,1);
+keepOA = true(nOA_full,1);
+
+keepYA(ya_excl) = false;
+keepOA(oa_excl) = false;
+
+Y_BStask = Y_BStask(keepYA);
+O_BStask = O_BStask(keepOA);
+
+behav_YA = behavdat_full(1:nYA_full, :);
+behav_OA = behavdat_full(nYA_full+1:end, :);
+
+behav_YA = behav_YA(keepYA, :);
+behav_OA = behav_OA(keepOA, :);
+
+% recombine after matching exclusions
 BStask   = [Y_BStask; O_BStask];
+behavdat = [behav_YA; behav_OA];
 
-behavoi = [1 2 3];
-regime_labels = regime_tbl.Properties.VariableNames;
-
-behavdat = table2array(regime_tbl);
-
-nYA = length(Y_BStask);
-
-% Identify OA rows in full dataset
-idx_OA = (1:length(BStask)) > nYA;
-
-% Work on full behavior
-y_all = behavdat(:,3);
-
-% Compute z within OA only
-z_OA = zscore(y_all(idx_OA));
-
-% Logical index of subjects to keep
-keep_OA = true(sum(idx_OA),1);
-keep_OA(z_OA < -3) = false;
-
-% Build full keep index
-keep = true(size(BStask));
-keep(idx_OA) = keep_OA;
-
-% Apply to everything
-BStask = BStask(keep);
-behavdat = behavdat(keep,:);
-
-% Re-split YA / OA after removal
-nYA_new = sum(~idx_OA(keep));
-
+% z-score brain scores after exclusion
 BStask = zscore(BStask);
 
-Y_BStask = BStask(1:nYA_new);
-O_BStask = BStask(nYA_new+1:end);
+nYA = sum(keepYA);
+nOA = sum(keepOA);
 
-behav_YA = behavdat(1:nYA_new,:);
-behav_OA = behavdat(nYA_new+1:end,:);
+Y_BStask = BStask(1:nYA);
+O_BStask = BStask(nYA+1:end);
 
 % Common axis limits
 x_all = BStask;
 xlim_all = [min(x_all) max(x_all)];
 ylim_all = [min(behavdat(:)) max(behavdat(:))];
 
-cols = [1 0 0;          % Young = red
-        0 0.447 0.741]; % Older = blue
+cols = [1 0 0; ...
+        0 0.447 0.741];
 
-for i = 1:3
-    nexttile(i+3);
+for ii = 1:numel(behavoi)
+    i = behavoi(ii);
+
+    nexttile(tile_idx(ii), [1 2]);
     hold on
 
     % -------------------------
     % Scatter
     % -------------------------
     if showRawPts
-        h1 = scatter(Y_BStask, behav_YA(:,i), 30, 'filled', ...
+        h1 = scatter(Y_BStask, behav_YA(:,i), 15, 'filled', ...
             'MarkerFaceColor', cols(1,:), ...
             'MarkerEdgeColor', 'w', ...
-            'LineWidth', 0.5);
+            'LineWidth', 0.25);
 
-        h2 = scatter(O_BStask, behav_OA(:,i), 30, 'filled', ...
+        h2 = scatter(O_BStask, behav_OA(:,i), 15, 'filled', ...
             'MarkerFaceColor', cols(2,:), ...
             'MarkerEdgeColor', 'w', ...
-            'LineWidth', 0.5);
+            'LineWidth', 0.25);
     end
 
     % -------------------------
@@ -94,8 +129,8 @@ for i = 1:3
     xY = linspace(min(Y_BStask), max(Y_BStask), 100);
     xO = linspace(min(O_BStask), max(O_BStask), 100);
 
-    plot(xY, polyval(pY_lin, xY), '-', 'Color', cols(1,:), 'LineWidth', 1.5)
-    plot(xO, polyval(pO_lin, xO), '-', 'Color', cols(2,:), 'LineWidth', 1.5)
+    plot(xY, polyval(pY_lin, xY), '-', 'Color', cols(1,:), 'LineWidth', 1)
+    plot(xO, polyval(pO_lin, xO), '-', 'Color', cols(2,:), 'LineWidth', 1)
 
     % -------------------------
     % Correlations
@@ -111,22 +146,20 @@ for i = 1:3
     % -------------------------
     xFit = linspace(min(BStask), max(BStask), 200);
 
-    % Fit linear and quadratic models on raw data
     mdl_lin  = fitlm(BStask, y_all_i);
     mdl_quad = fitlm(BStask, y_all_i, 'quadratic');
 
-    % Manual nested F-test: does quadratic improve over linear?
     SSE_lin  = mdl_lin.SSE;
     SSE_quad = mdl_quad.SSE;
 
-    df_lin   = mdl_lin.DFE;   % residual df
+    df_lin   = mdl_lin.DFE;
     df_quad  = mdl_quad.DFE;
 
-    df1      = df_lin - df_quad;   % added parameter(s), usually 1
+    df1      = df_lin - df_quad;
     df2      = df_quad;
 
     F_quad   = ((SSE_lin - SSE_quad) / df1) / (SSE_quad / df2);
-    F_quad   = max(F_quad, 0); % guard against tiny negative values
+    F_quad   = max(F_quad, 0);
     p_quad   = 1 - fcdf(F_quad, df1, df2);
 
     R2_lin   = mdl_lin.Rsquared.Adjusted;
@@ -134,7 +167,6 @@ for i = 1:3
     dR2      = R2_quad - R2_lin;
 
     if useBinnedAll
-        % Bin x and average y within bins
         edges = linspace(min(BStask), max(BStask), nBins+1);
 
         yBinMean = nan(1,nBins);
@@ -143,8 +175,6 @@ for i = 1:3
         nPerBin  = nan(1,nBins);
 
         binIdx = discretize(BStask, edges);
-
-        % Make sure max value goes into last bin
         binIdx(BStask == edges(end)) = nBins;
 
         for b = 1:nBins
@@ -161,7 +191,6 @@ for i = 1:3
 
         valid = ~isnan(xBinMean) & ~isnan(yBinMean);
 
-        % Plot binned means
         if showBinErr
             errorbar(xBinMean(valid), yBinMean(valid), yBinSEM(valid), ...
                 'o-', 'Color', 'k', 'LineWidth', 1.8, ...
@@ -173,9 +202,8 @@ for i = 1:3
                 'MarkerFaceColor', 'k', 'MarkerSize', 5);
         end
 
-        % Optional smooth line through binned means for visualization
         if sum(valid) >= 4
-            if i == 2
+            if strcmpi(plotWhat,'regimes') && i == 2
                 pBin = polyfit(xBinMean(valid), yBinMean(valid), 2);
             else
                 pBin = polyfit(xBinMean(valid), yBinMean(valid), 1);
@@ -185,17 +213,18 @@ for i = 1:3
         end
 
     else
-        % Plot model chosen for each panel
-        if i == 2
+        if strcmpi(plotWhat,'regimes') && i == 2
             yFit = predict(mdl_quad, xFit');
         else
             yFit = predict(mdl_lin, xFit');
         end
-        plot(xFit, yFit, 'k', 'LineWidth', 1.8)
+        plot(xFit, yFit, 'k', 'LineWidth', 1)
     end
 
+    % -------------------------
     % Print stats to command window
-    fprintf('\n=== %s ===\n', regime_labels{i});
+    % -------------------------
+    fprintf('\n=== %s ===\n', plot_labels{i});
     fprintf('r_YA = %.3f, p = %.4f\n', rY, pY);
     fprintf('r_OA = %.3f, p = %.4f\n', rO, pO);
     fprintf('r_all = %.3f, p = %.4f\n', r_all, p_all);
@@ -206,50 +235,67 @@ for i = 1:3
         df1, df2, F_quad, p_quad);
 
     % -------------------------
-    % Title + annotation
+    % Subplot title + stat line
     % -------------------------
-    title(regime_labels{i})
+    % format numbers without leading zero
+    r_num = regexprep(sprintf('%.2f', r_all), '^(-?)0\.', '$1.');
+    p_num = regexprep(sprintf('%.3f', p_all), '^(-?)0\.', '$1.');
+    p_quad_num = regexprep(sprintf('%.3f', p_quad), '^(-?)0\.', '$1.');
 
-    if p_all < 0.001
-        p_str = 'p < 0.001';
+    if strcmpi(plotWhat,'regimes')
+        if i == 3   % stable
+            if p_all < 0.001
+                stat_str = sprintf('r = %s, p < .001', r_num);
+            else
+                stat_str = sprintf('r = %s, p = %s', r_num, p_num);
+            end
+
+        elseif i == 2   % balanced
+            if p_quad < 0.001
+                stat_str = 'quad > lin, p < .001';
+            else
+                stat_str = sprintf('quad > lin, p = %s', p_quad_num);
+            end
+
+        elseif i == 1   % flexible
+            if p_all < 0.001
+                stat_str = sprintf('r = %s, p < .001', r_num);
+            else
+                stat_str = sprintf('r = %s, p = %s', r_num, p_num);
+            end
+
+        else
+            stat_str = '';
+        end
     else
-        p_str = sprintf('p = %.3f', p_all);
+        if p_all < 0.001
+            stat_str = sprintf('r = %s, p < .001', r_num);
+        else
+            stat_str = sprintf('r = %s, p = %s', r_num, p_num);
+        end
     end
 
-    corr_str = sprintf('r = %.2f\n%s', r_all, p_str);
-
-    if p_quad < 0.001
-        p_quad_str = 'p < 0.001';
-    else
-        p_quad_str = sprintf('p = %.3f', p_quad);
-    end
-
-    quad_str = sprintf('quad > lin:\nF(%d,%d)=%.2f\n%s, dR^2=%.03f', ...
-        df1, df2, F_quad, p_quad_str, dR2);
-
-    if i == 2
-        txt = sprintf('%s\n\n%s', corr_str, quad_str);
-    else
-        txt = corr_str;
-    end
-
-    text(0.92, 0.08, txt, ...
-      'Units','normalized', ...
-      'HorizontalAlignment','right', ...
-      'VerticalAlignment','bottom', ...
-      'FontSize',9, ...
-      'BackgroundColor','none', ...
-      'Margin',2);
+    title({['\it' plot_labels{i}], ['\rm' stat_str]}, ...
+        'Interpreter', 'tex', ...
+        'FontWeight', 'normal', ...
+        'FontSize', 7)
 
     xlabel('Brain score (z)')
-    ylabel('Behavior')
+    ylabel('Behavior (z)')
 
     xlim(xlim_all)
     ylim(ylim_all)
     box off
+    axis square
     axis padded
+    ax = gca;
+    ax.TickDir = 'out';
 end
 
-% outfile = sprintf('LV%d_BehavPLS', LVsel);
-% exportgraphics(gcf, fullfile(plotfolder, [outfile '.pdf']), ...
-%     'ContentType', 'vector', 'BackgroundColor','white')
+h = annotation('textbox', [0.0311    0.5898    1.0000    0.0500], ...
+    'String', 'Brain score vs. behavior across cognitive regimes', ...
+    'EdgeColor', 'none', ...
+    'HorizontalAlignment', 'center', ...
+    'FontWeight', 'bold', ...
+    'FontSize', 8);
+% plotedit on
