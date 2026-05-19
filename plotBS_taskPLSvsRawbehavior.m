@@ -1,5 +1,6 @@
 %% plot correlations task PLS brainscores with raw behavior
 % Figure
+plotinfig = 1
 if ~plotinfig
     f = figure;
 
@@ -11,6 +12,13 @@ if ~plotinfig
     else
         tiledlayout(3,4,'TileSpacing','compact','Padding','compact');
     end
+end
+
+figLayout = findobj(gcf, 'Type', 'tiledlayout');
+if isempty(figLayout)
+    figLayout = tiledlayout(3,6,'TileSpacing','compact','Padding','tight');
+else
+    figLayout = figLayout(1);
 end
 
 % =========================
@@ -40,6 +48,7 @@ nOA_full = length(O_BStask);
 % =========================
 % CHOOSE WHAT TO PLOT
 % =========================
+clear lower
 switch lower(plotWhat)
     case 'regimes'
         behavdat_full = table2array(regime_tbl);
@@ -56,8 +65,8 @@ switch lower(plotWhat)
         behavdat_full = table2array(clean_tbl(:, domainNames));
         behavoi = 1:numel(domainNames);
 
-        % tile positions for 5-panel layout in 3x4 grid
-        tile_idx = [5 6 7 8 10];
+        % two-column panels in rows 2-3 of the 3x6 master layout
+        tile_idx = [7 9 11 13 15];
 end
 
 % =========================
@@ -96,13 +105,13 @@ x_all = BStask;
 xlim_all = [min(x_all) max(x_all)];
 ylim_all = [min(behavdat(:)) max(behavdat(:))];
 
-cols = [1 0 0; ...
-        0 0.447 0.741];
+cols = [0.85 0.20 0.20; ...
+        0.10 0.45 0.75];
 
 for ii = 1:numel(behavoi)
     i = behavoi(ii);
 
-    nexttile(tile_idx(ii), [1 2]);
+    nexttile(figLayout, tile_idx(ii), [1 2]);
     hold on
 
     % -------------------------
@@ -213,12 +222,12 @@ for ii = 1:numel(behavoi)
         end
 
     else
-        if strcmpi(plotWhat,'regimes') && i == 2
-            yFit = predict(mdl_quad, xFit');
-        else
+        % if strcmpi(plotWhat,'regimes') && i == 2
+        %     yFit = predict(mdl_quad, xFit');
+        % else
             yFit = predict(mdl_lin, xFit');
-        end
-        plot(xFit, yFit, 'k', 'LineWidth', 1)
+        % end
+        plot(xFit, yFit, 'Color', [0.4 0.4 0.4], 'LineWidth', 1) 
     end
 
     % -------------------------
@@ -250,14 +259,15 @@ for ii = 1:numel(behavoi)
                 stat_str = sprintf('r = %s, p = %s', r_num, p_num);
             end
 
-        elseif i == 2   % balanced
-            if p_quad < 0.001
-                stat_str = 'quad > lin, p < .001';
-            else
-                stat_str = sprintf('quad > lin, p = %s', p_quad_num);
-            end
+        % elseif i == 2   % balanced
+        %     if p_quad < 0.001
+        %         stat_str = 'quad > lin, p < .001';
+        %     else
+        %         stat_str = sprintf('quad > lin, p = %s', p_quad_num);
+        %     end
 
-        elseif i == 1   % flexible
+        % elseif i == 1   % flexible
+        elseif i < 3   % flexible and balanced
             if p_all < 0.001
                 stat_str = sprintf('r = %s, p < .001', r_num);
             else
@@ -292,10 +302,11 @@ for ii = 1:numel(behavoi)
     ax.TickDir = 'out';
 end
 
-h = annotation('textbox', [0.0311    0.5898    1.0000    0.0500], ...
+h = annotation('textbox', [0.0311    0.6250    1.0000    0.0500], ...
     'String', 'Brain score vs. behavior across cognitive regimes', ...
     'EdgeColor', 'none', ...
     'HorizontalAlignment', 'center', ...
     'FontWeight', 'bold', ...
-    'FontSize', 8);
+    'FontSize', 8, ...
+    'Color', 'k');
 % plotedit on

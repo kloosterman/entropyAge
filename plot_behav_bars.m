@@ -159,27 +159,56 @@ end
 
 p_fdr = mafdr(pvals, 'BHFDR', true);
 
+%% Brain score summary for appended BSV bars
+BS_Y = stat_mse_2group_task.brainscores{1}(:,1);
+BS_O = stat_mse_2group_task.brainscores{2}(:,1);
+
+BS = zscore([BS_Y; BS_O]);
+nBS_Y = numel(BS_Y);
+BS_Y = BS(1:nBS_Y);
+BS_O = BS(nBS_Y+1:end);
+
+outBS_Y = abs(BS_Y) > 3;
+outBS_O = abs(BS_O) > 3;
+fprintf('Brain score outliers removed: Young=%d, Older=%d\n', sum(outBS_Y), sum(outBS_O));
+BS_Y(outBS_Y) = NaN;
+BS_O(outBS_O) = NaN;
+
+meanBS_Y = mean(BS_Y, 'omitnan');
+meanBS_O = mean(BS_O, 'omitnan');
+semBS_Y = std(BS_Y, 'omitnan') / sqrt(sum(~isnan(BS_Y)));
+semBS_O = std(BS_O, 'omitnan') / sqrt(sum(~isnan(BS_O)));
+[~, pBS] = ttest2(BS_Y, BS_O);
+
 %% Plot
 nexttile(1,[1 3])
 hold on
 
-x = 1:5;
+x = 1:6;
+x_behav = 1:5;
+x_bs = 6;
 width = 0.35;
 jitter = 0.08;
 
-col_Y = [1 0 0];
-col_O = [0 0.447 0.741];
+col_Y = [0.85 0.20 0.20];
+col_O = [0.10 0.45 0.75];
+
+meanY_plot = [meanY meanBS_Y];
+meanO_plot = [meanO meanBS_O];
+semY_plot = [semY semBS_Y];
+semO_plot = [semO semBS_O];
 
 % Bars
-bar(x - width/2, meanY, width, ...
+hY = bar(x - width/2, meanY_plot, width, ...
     'FaceColor', col_Y, 'EdgeColor', 'none', 'FaceAlpha', 0.6);
 
-bar(x + width/2, meanO, width, ...
+hO = bar(x + width/2, meanO_plot, width, ...
     'FaceColor', col_O, 'EdgeColor', 'none', 'FaceAlpha', 0.6);
 
 % dividers between regimes
 xline(1.5, '--', 'LineWidth', 1, 'Color', [0.8 0.8 0.8])
 xline(3.5, '--', 'LineWidth', 1, 'Color', [0.8 0.8 0.8])
+xline(5.5, '-', 'LineWidth', 0.75, 'Color', [0.9 0.9 0.9])
 
 % Individual points
 for i = 1:5
@@ -205,11 +234,29 @@ for i = 1:5
         'LineWidth', 0.25);
 end
 
+x_jit_BS_Y = (x_bs-width/2) + (rand(sum(~isnan(BS_Y)),1)-0.5)*2*jitter;
+x_jit_BS_O = (x_bs+width/2) + (rand(sum(~isnan(BS_O)),1)-0.5)*2*jitter;
+
+scatter(x_jit_BS_Y, BS_Y(~isnan(BS_Y)), ...
+    4, col_Y, 'filled', ...
+    'MarkerFaceAlpha', 0.4, ...
+    'MarkerEdgeColor', 'w', ...
+    'LineWidth', 0.25);
+
+scatter(x_jit_BS_O, BS_O(~isnan(BS_O)), ...
+    4, col_O, 'filled', ...
+    'MarkerFaceAlpha', 0.4, ...
+    'MarkerEdgeColor', 'w', ...
+    'LineWidth', 0.25);
+
 % Error bars
-errorbar(x - width/2, meanY, semY, 'k', ...
+errY = errorbar(x - width/2, meanY_plot, semY_plot, ...
+    'Color', [0.35 0.35 0.35], ...
     'LineStyle', 'none', 'LineWidth', 0.5);
-errorbar(x + width/2, meanO, semO, 'k', ...
+errO = errorbar(x + width/2, meanO_plot, semO_plot, ...
+    'Color', [0.35 0.35 0.35], ...
     'LineStyle', 'none', 'LineWidth', 0.5);
+set([errY errO], 'CapSize', 3);
 
 % text(1.25, -2, 'Regimes:', 'FontSize', 7,'FontAngle','italic') %, 'Units','normalized'
 % text(0.46, -2.7, 'Stable', 'FontSize', 7,'FontAngle','italic') %, 'Units','normalized'
@@ -217,52 +264,87 @@ errorbar(x + width/2, meanO, semO, 'k', ...
 % text(3.77, -2.7, 'Flexible', 'FontSize', 7,'FontAngle','italic') %, 'Units','normalized'
 
 %% Significance markers
-ymin_all = min([meanY - semY, meanO - semO]);
-ymax_all = max([meanY + semY, meanO + semO]);
-yRange = ymax_all - ymin_all;
+sig_x = [1:5 x_bs];
+sig_p = [p_fdr pBS];
+sig_y = nan(size(sig_x));
+
+for ii = 1:5
+    dataY_raw = clean_tbl{isYoung, domainNames{ii}};
+    dataO_raw = clean_tbl{isOld,   domainNames{ii}};
+    sig_y(ii) = max([dataY_raw; dataO_raw], [], 'omitnan') + 0.22;
+end
+sig_y(end) = max([BS_Y; BS_O], [], 'omitnan') + 0.22;
+sig_y(:) = sig_y(4); % shared height, matched to Working Memory
+
+allVals = [clean_tbl{:, domainNames}(:); BS_Y(:); BS_O(:)];
+yRange = max(allVals, [], 'omitnan') - min(allVals, [], 'omitnan');
 if yRange == 0
     yRange = 1;
 end
 
-y_sig = 2.25;
-
-for i = 1:5
-    if p_fdr(i) < 0.001
+for ii = 1:numel(sig_x)
+    if sig_p(ii) < 0.001
         stars = '***';
-    elseif p_fdr(i) < 0.01
+    elseif sig_p(ii) < 0.01
         stars = '**';
-    elseif p_fdr(i) < 0.05
+    elseif sig_p(ii) < 0.05
         stars = '*';
     else
         stars = 'n.s.';
     end
 
-    plot([x(i)-width/2 x(i)+width/2], [y_sig y_sig], 'k', 'LineWidth', 1);
-    text(x(i), y_sig + 0.03*yRange, stars, ...
+    plot([sig_x(ii)-width/2 sig_x(ii)+width/2], [sig_y(ii) sig_y(ii)], 'k', 'LineWidth', 1);
+    text(sig_x(ii), sig_y(ii) + 0.03*yRange, stars, ...
         'HorizontalAlignment', 'center', 'FontSize', 9);
 end
 
 %% Formatting
 xticks(x)
-xticklabels(domainLabels)
+shortDomainLabels = {'Cryst.', 'Attention', 'Learning', 'Working', 'Fluid'};
+xticklabels([shortDomainLabels {'Brain score'}])
 xtickangle(25)
 
-% xlabel('Cognitive domains')
 ylabel('Score (z)')
-title('Cognitive performance')
-subtitle('Stable  Balanced  Flexible', 'FontAngle','italic', 'HorizontalAlignment','center')
+title('')
 
 box off
 ax = gca;
-ax.XLim = [0.5 5.5];
+ax.XLim = [0.5 6.5];
 if isempty(oa_excl)
-  ax.YLim = [-3.4 3];
+  ax.YLim = [-3.4 max(sig_y) + 0.45];
 else
-  ax.YLim = [-3 3];
+  ax.YLim = [-3 max(sig_y) + 0.45];
 end
 ax.FontSize = 8;
 ax.TickDir = 'out';
 ax.YTick = [-2 0 2];
+ax.XAxis.FontSize = 6;
+panelA_YLim = ax.YLim;
+panelA_YTick = ax.YTick;
+panelA_Pos = ax.Position;
+
+legend_y = -2.5;
+plot(2.10, legend_y, 's', ...
+    'MarkerFaceColor', col_Y, ...
+    'MarkerEdgeColor', 'none', ...
+    'MarkerSize', 4, ...
+    'HandleVisibility', 'off');
+text(2.22, legend_y, 'Young', ...
+    'Color', 'k', ...
+    'FontSize', 6, ...
+    'HorizontalAlignment', 'left', ...
+    'VerticalAlignment', 'middle');
+
+plot(4.25, legend_y, 's', ...
+    'MarkerFaceColor', col_O, ...
+    'MarkerEdgeColor', 'none', ...
+    'MarkerSize', 4, ...
+    'HandleVisibility', 'off');
+text(4.37, legend_y, 'Older', ...
+    'Color', 'k', ...
+    'FontSize', 6, ...
+    'HorizontalAlignment', 'left', ...
+    'VerticalAlignment', 'middle');
 % exportgraphics(gcf, fullfile(plotfolder, 'domains_1col.pdf'), ...
 %     'ContentType', 'vector', 'BackgroundColor', 'white');
 % exportgraphics(gcf, fullfile(plotfolder, 'domains_1col.png'), ...

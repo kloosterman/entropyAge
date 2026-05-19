@@ -25,6 +25,9 @@ addpath(fullfile(toolspath, 'plscmd'))
 set(groot,'defaultTextInterpreter','none')
 set(groot,'defaultAxesTickLabelInterpreter','none')
 set(groot,'defaultLegendInterpreter','none')
+cmap = cbrewer('div','RdBu',256);
+cmap = flipud(cmap);
+
 %% preprocessing EEG data
 eA_preproc_setup() % done by Moritz
 
@@ -34,7 +37,7 @@ runPLSanalyses
 % The big figure with behavior, task PLS brain scores, gradient and example
 % scatters
 compute_behav_domain_regime % plot behav bar plot
-plot_behav_PLS_grad_scat % plot task PLS bar + topo
+% plot_behav_PLS_grad_scat % plot task PLS bar + topo
 
 %% better: behavior bars, task pls, gradient plot: stable to flexible
 close all
@@ -89,3 +92,8 @@ for LVsel = 1:3 %1:4
   plot_PLSCcorr_blink % corr bar plots
 end
 
+%% correlate LV1 vs LV3 brain scores
+plot_LV1vsLV3_brainscores
+
+%% plot LV1 vs LV3 interaction across regimes (Figure 3)
+plot_LV1LV3_effects_summary

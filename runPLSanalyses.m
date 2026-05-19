@@ -210,10 +210,9 @@ for ilv = 1:2
              stat_mse_2group_behav.boot_res.ulcorr(:,ilv)));
 end
 
-% save(fullfile(plotfolder, 'behavPLS_2group_blink.mat'), 'stat_mse_2group_behav')
+save(fullfile(plotfolder, 'behavPLS_2group_blink.mat'), 'stat_mse_2group_behav')
 
 %% TODO no blink
 
 %% TODO no blink modulation
-
 
